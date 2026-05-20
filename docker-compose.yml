@@ -6,17 +6,6 @@ x-app-base: &app-base
     - osm_data:/osm_data
 
 services:
-  osm-downloader:
-    build:
-      context: .
-      dockerfile: Dockerfile.osm-downloader
-    volumes:
-      - osm_data:/osm_data
-    environment:
-      PBF_URL: https://download.geofabrik.de/russia/northwestern-fed-district-latest.osm.pbf
-      BBOX: "30.2970,59.9665,30.3305,59.9805"
-    restart: "no"
-
   db:
     image: neo4j:5.26-community
     environment:
@@ -57,30 +46,14 @@ services:
       REDIS_URL: redis://redis:6379/0
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       GEOJSON_PATH: /osm_data/saint-petersburg.osm
+      PBF_URL: https://download.geofabrik.de/russia/northwestern-fed-district-latest.osm.pbf
+      OSM_BBOX: "30.2970,59.9665,30.3305,59.9805"
     depends_on:
-      osm-downloader:
-        condition: service_completed_successfully
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-      neo4j-migrations:
-        condition: service_completed_successfully
-    command: ["uvicorn", "app.main:app","--host", "0.0.0.0", "--port", "8000"]
-  neo4j-migrations:
-    <<: *app-base
-    environment:
-      NEO4J_URI: bolt://db:7687
-      NEO4J_USER: ${NEO4J_USER:-neo4j}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-snowcleaning2026}
-      GEOJSON_PATH: /osm_data/saint-petersburg.osm
-    depends_on:
-      osm-downloader:
-        condition: service_completed_successfully
-      db:
-        condition: service_healthy
-    restart: "no"
-    command: ["python", "-m", "app.bootstrap"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 volumes:
   neo4j_data:
