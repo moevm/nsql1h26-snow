@@ -1,0 +1,159 @@
+[
+  {
+    "id": "seed-r1",
+    "label": "Карповка запад",
+    "start_lat": 59.967,
+    "start_lng": 30.312,
+    "end_lat": 59.973,
+    "end_lng": 30.312,
+    "streets": ["Проспект 0-0", "Проспект 1-0"],
+    "distance_m": 660.0,
+    "path_nodes": [
+      {"lat": 59.967, "lng": 30.312},
+      {"lat": 59.97, "lng": 30.312},
+      {"lat": 59.973, "lng": 30.312}
+    ],
+    "waypoints": [
+      {"point_id": "seed-0-0", "role": "start", "index": 0},
+      {"point_id": "seed-2-0", "role": "end", "index": 1}
+    ]
+  },
+  {
+    "id": "seed-r2",
+    "label": "Карповка восток",
+    "start_lat": 59.967,
+    "start_lng": 30.318,
+    "end_lat": 59.973,
+    "end_lng": 30.318,
+    "streets": ["Проспект 0-2", "Проспект 1-2"],
+    "distance_m": 660.0,
+    "path_nodes": [
+      {"lat": 59.967, "lng": 30.318},
+      {"lat": 59.97, "lng": 30.318},
+      {"lat": 59.973, "lng": 30.318}
+    ],
+    "waypoints": [
+      {"point_id": "seed-0-2", "role": "start", "index": 0},
+      {"point_id": "seed-2-2", "role": "end", "index": 1}
+    ]
+  },
+  {
+    "id": "seed-r3",
+    "label": "Поперечный юг",
+    "start_lat": 59.97,
+    "start_lng": 30.312,
+    "end_lat": 59.97,
+    "end_lng": 30.324,
+    "streets": ["Улица 1-0", "Улица 1-1", "Улица 1-2", "Улица 1-3"],
+    "distance_m": 1200.0,
+    "path_nodes": [
+      {"lat": 59.97, "lng": 30.312},
+      {"lat": 59.97, "lng": 30.315},
+      {"lat": 59.97, "lng": 30.318},
+      {"lat": 59.97, "lng": 30.321},
+      {"lat": 59.97, "lng": 30.324}
+    ],
+    "waypoints": [
+      {"point_id": "seed-1-0", "role": "start", "index": 0},
+      {"point_id": "seed-1-4", "role": "end", "index": 1}
+    ]
+  },
+  {
+    "id": "seed-r4",
+    "label": "Поперечный север",
+    "start_lat": 59.976,
+    "start_lng": 30.312,
+    "end_lat": 59.976,
+    "end_lng": 30.324,
+    "streets": ["Улица 3-0", "Улица 3-1", "Улица 3-2", "Улица 3-3"],
+    "distance_m": 1200.0,
+    "path_nodes": [
+      {"lat": 59.976, "lng": 30.312},
+      {"lat": 59.976, "lng": 30.315},
+      {"lat": 59.976, "lng": 30.318},
+      {"lat": 59.976, "lng": 30.321},
+      {"lat": 59.976, "lng": 30.324}
+    ],
+    "waypoints": [
+      {"point_id": "seed-3-0", "role": "start", "index": 0},
+      {"point_id": "seed-3-4", "role": "end", "index": 1}
+    ]
+  },
+  {
+    "id": "seed-r5",
+    "label": "Диагональ центра",
+    "start_lat": 59.97,
+    "start_lng": 30.315,
+    "end_lat": 59.976,
+    "end_lng": 30.321,
+    "streets": ["Проспект 1-1", "Улица 2-1", "Проспект 2-2", "Улица 3-2"],
+    "distance_m": 850.0,
+    "path_nodes": [
+      {"lat": 59.97, "lng": 30.315},
+      {"lat": 59.973, "lng": 30.318},
+      {"lat": 59.976, "lng": 30.321}
+    ],
+    "waypoints": [
+      {"point_id": "seed-1-1", "role": "start", "index": 0},
+      {"point_id": "seed-3-3", "role": "end", "index": 1}
+    ]
+  },
+  {
+    "id": "seed-r6",
+    "label": "Аптекарская набережная",
+    "start_lat": 59.976,
+    "start_lng": 30.318,
+    "end_lat": 59.979,
+    "end_lng": 30.324,
+    "streets": ["Проспект 3-2", "Улица 4-2", "Улица 4-3"],
+    "distance_m": 700.0,
+    "path_nodes": [
+      {"lat": 59.976, "lng": 30.318},
+      {"lat": 59.9772, "lng": 30.322},
+      {"lat": 59.979, "lng": 30.324}
+    ],
+    "waypoints": [
+      {"point_id": "seed-3-2", "role": "start", "index": 0},
+      {"point_id": "seed-4-4", "role": "end", "index": 1}
+    ]
+  },
+  {
+    "id": "seed-r7",
+    "label": "Медиков к Попова",
+    "start_lat": 59.979,
+    "start_lng": 30.318,
+    "end_lat": 59.9712,
+    "end_lng": 30.3141,
+    "streets": ["Проспект 4-2", "Проспект 3-2", "улица Профессора Попова"],
+    "distance_m": 960.0,
+    "path_nodes": [
+      {"lat": 59.979, "lng": 30.318},
+      {"lat": 59.975, "lng": 30.317},
+      {"lat": 59.9712, "lng": 30.3141}
+    ],
+    "waypoints": [
+      {"point_id": "seed-4-2", "role": "start", "index": 0},
+      {"point_id": "leti-popova-center", "role": "end", "index": 1}
+    ]
+  },
+  {
+    "id": "seed-r8",
+    "label": "Т-перекресток ЛЭТИ",
+    "start_lat": 59.9698,
+    "start_lng": 30.3141,
+    "end_lat": 59.9712,
+    "end_lng": 30.3159,
+    "streets": ["Инструментальная улица", "улица Профессора Попова"],
+    "distance_m": 310.0,
+    "path_nodes": [
+      {"lat": 59.9698, "lng": 30.3141},
+      {"lat": 59.9712, "lng": 30.3141},
+      {"lat": 59.9712, "lng": 30.3159}
+    ],
+    "waypoints": [
+      {"point_id": "leti-instrumental-south", "role": "start", "index": 0},
+      {"point_id": "leti-popova-center", "role": "waypoint", "index": 1},
+      {"point_id": "leti-popova-east", "role": "end", "index": 2}
+    ]
+  }
+]
