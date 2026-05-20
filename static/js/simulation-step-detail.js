@@ -138,6 +138,7 @@
                 if (s.simulation_id) {
                     loadRoutes(s.simulation_id);
                 }
+
                 loadVehicles();
             })
             .catch(function() { document.getElementById('step-title').textContent = 'Шаг не найден'; });

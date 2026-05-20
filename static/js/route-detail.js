@@ -51,6 +51,7 @@
                 var pathNodes = (r.path_nodes && r.path_nodes.length >= 2)
                     ? r.path_nodes
                     : [{ lat: r.start.lat, lng: r.start.lng }, { lat: r.end.lat, lng: r.end.lng }];
+
                 if (leafletMap._routeLine) leafletMap.removeLayer(leafletMap._routeLine);
                 var line = L.polyline(pathNodes.map(function (n) { return [n.lat, n.lng]; }), { color: '#89b4fa', weight: 4 }).addTo(leafletMap);
                 leafletMap._routeLine = line;
@@ -62,7 +63,6 @@
             })
             .catch(function () { document.getElementById('route-title').textContent = 'Маршрут не найден'; });
     }
-
 
     function loadRoutePoints(page) {
         page = page || pointsPage;
@@ -113,7 +113,6 @@
         loadRoutePoints(p);
     };
 
-
     function loadWaypoints() {
         AuthModule.apiFetch('/api/routes-crud/' + routeId + '/waypoints')
             .then(function (r) { return r.ok ? r.json() : []; })
@@ -157,7 +156,7 @@
         pickMode = active;
         var btn = document.getElementById('btn-pick-on-map');
         var hint = document.getElementById('wp-pick-hint');
-        if (btn) btn.textContent = active ? 'Отмена' : 'Выбрать на карте';
+        if (btn) btn.textContent = active ? '❌ Отмена' : '📍 Выбрать на карте';
         if (btn) btn.className = active ? 'btn-red' : 'btn-blue';
         if (btn) btn.style.cssText = 'padding:3px 10px;font-size:0.8rem';
         if (hint) hint.style.display = active ? '' : 'none';

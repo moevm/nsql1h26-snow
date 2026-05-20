@@ -1,0 +1,21 @@
+@startuml architecture_context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Контекстная диаграмма — Симуляция уборки снега (СПб)
+
+Person(operator, "Оператор", "Задаёт маршруты уборки,\nзапускает симуляцию,\nотслеживает прогресс")
+
+System(snow_sim, "Snow Cleaning Simulation", "Веб-приложение для моделирования\nработы снегоуборочной техники\nна дорожной сети Санкт-Петербурга.\n\nFastAPI + Neo4j + Redis + Jaeger\nLeaflet.js + Chart.js")
+
+System_Ext(osm_tiles, "OpenStreetMap Tiles", "Тайловый сервер для\nотображения карты в браузере")
+System_Ext(nominatim, "Nominatim API", "Геокодирование: поиск адресов\nи координат по названию\n(OpenStreetMap)")
+System_Ext(osm_data, "OpenStreetMap Data", "Исходные данные дорожной сети\n(OSM XML файл,\nоднократный офлайн-импорт)")
+
+Rel(operator, snow_sim, "Управляет симуляцией", "HTTP (браузер)")
+Rel(snow_sim, osm_tiles, "Тайлы карты", "HTTPS")
+Rel(snow_sim, nominatim, "Поиск адреса", "HTTPS")
+Rel_L(osm_data, snow_sim, "Импорт дорожной сети\n(одноразово)", "OSM XML → Neo4j")
+
+@enduml

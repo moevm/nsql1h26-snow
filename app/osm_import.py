@@ -27,29 +27,10 @@ DRIVABLE_HIGHWAYS = {
     "service",
 }
 
-HIGHWAY_SPEED_FACTOR = {
-    "motorway": 1.0,
-    "motorway_link": 0.95,
-    "trunk": 0.95,
-    "trunk_link": 0.9,
-    "primary": 0.85,
-    "primary_link": 0.8,
-    "secondary": 0.75,
-    "secondary_link": 0.72,
-    "tertiary": 0.68,
-    "tertiary_link": 0.65,
-    "unclassified": 0.6,
-    "residential": 0.55,
-    "living_street": 0.45,
-    "service": 0.4,
-}
-
-
 def _local_name(tag: str) -> str:
     if "}" in tag:
         return tag.rsplit("}", 1)[-1]
     return tag
-
 
 def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     radius = 6371000.0
@@ -63,21 +44,6 @@ def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     )
     return 2 * radius * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-
-def _parse_width(tags: dict[str, str]) -> float | None:
-    raw = (tags.get("width") or "").strip().lower().replace(",", ".")
-    if raw.endswith("m"):
-        raw = raw[:-1].strip()
-    try:
-        return round(float(raw), 1) if raw else None
-    except ValueError:
-        lanes = tags.get("lanes")
-        try:
-            return round(float(lanes) * 3.25, 1) if lanes else None
-        except ValueError:
-            return None
-
-
 def _is_oneway(tags: dict[str, str]) -> bool:
     oneway = (tags.get("oneway") or "").strip().lower()
     if oneway in {"yes", "1", "true"}:
@@ -85,7 +51,6 @@ def _is_oneway(tags: dict[str, str]) -> bool:
     if tags.get("junction") == "roundabout":
         return True
     return False
-
 
 def _iter_osm_roads(osm_path: Path) -> tuple[dict[str, tuple[float, float]], list[dict]]:
     nodes: dict[str, tuple[float, float]] = {}
@@ -128,8 +93,6 @@ def _iter_osm_roads(osm_path: Path) -> tuple[dict[str, tuple[float, float]], lis
 
         oneway = _is_oneway(tags)
         name = tags.get("name")
-        width_m = _parse_width(tags)
-        speed_factor = HIGHWAY_SPEED_FACTOR.get(highway, 0.5)
 
         for src_id, dst_id in zip(refs, refs[1:]):
             src = nodes.get(src_id)
@@ -150,8 +113,6 @@ def _iter_osm_roads(osm_path: Path) -> tuple[dict[str, tuple[float, float]], lis
                     "highway": highway,
                     "oneway": oneway,
                     "geometry": geometry,
-                    "width_m": width_m,
-                    "speed_factor": speed_factor,
                 }
             )
             if not oneway:
@@ -164,8 +125,6 @@ def _iter_osm_roads(osm_path: Path) -> tuple[dict[str, tuple[float, float]], lis
                         "highway": highway,
                         "oneway": False,
                         "geometry": list(reversed(geometry)),
-                        "width_m": width_m,
-                        "speed_factor": speed_factor,
                     }
                 )
 
@@ -174,7 +133,6 @@ def _iter_osm_roads(osm_path: Path) -> tuple[dict[str, tuple[float, float]], lis
     used_node_ids = {road["src"] for road in roads} | {road["dst"] for road in roads}
     used_nodes = {node_id: nodes[node_id] for node_id in used_node_ids if node_id in nodes}
     return used_nodes, roads
-
 
 async def import_osm_if_needed(graph: GraphDAO, osm_path: str | Path) -> bool:
     road_rows = await graph.run_query("MATCH ()-[r:ROAD]->() RETURN count(r) AS total")

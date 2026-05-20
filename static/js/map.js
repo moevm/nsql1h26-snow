@@ -3,6 +3,7 @@ var MapModule = (function () {
     var objectMarkers = {};
     var vehicleMarkers = {};
     var vehicleRouteLayers = {};
+    var vehicleDisplayPrefs = {};
     var routeLayer = null;
     var clickLatLng = null;
     var clickMarker = null;
@@ -23,7 +24,9 @@ var MapModule = (function () {
     };
 
     var ROUTE_COLORS = ['#d90429', '#f77f00', '#ffbe0b', '#2a9d8f', '#3a86ff', '#8338ec'];
+    var VEHICLE_COLOR_PALETTE = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#84cc16'];
     var boundaryOutlineLayer = null;
+    var VEHICLE_PREFS_STORAGE_KEY = 'snow_vehicle_display_prefs';
 
     var BBOX_SOUTH = 59.9665;
     var BBOX_WEST  = 30.2970;
@@ -51,6 +54,7 @@ var MapModule = (function () {
     }
 
     function init() {
+        loadVehicleDisplayPrefs();
         map = L.map('map', {
             maxZoom: 19,
             worldCopyJump: false,
@@ -70,6 +74,48 @@ var MapModule = (function () {
 
         console.log('[MapModule] init OK');
         return map;
+    }
+
+    function loadVehicleDisplayPrefs() {
+        try {
+            vehicleDisplayPrefs = JSON.parse(localStorage.getItem(VEHICLE_PREFS_STORAGE_KEY) || '{}') || {};
+        } catch (e) {
+            vehicleDisplayPrefs = {};
+        }
+    }
+
+    function saveVehicleDisplayPrefs() {
+        localStorage.setItem(VEHICLE_PREFS_STORAGE_KEY, JSON.stringify(vehicleDisplayPrefs));
+    }
+
+    function hashVehicleId(vehicleId) {
+        var hash = 0;
+        for (var i = 0; i < vehicleId.length; i += 1) {
+            hash = ((hash << 5) - hash) + vehicleId.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash);
+    }
+
+    function defaultVehicleColor(vehicleId) {
+        return VEHICLE_COLOR_PALETTE[hashVehicleId(vehicleId) % VEHICLE_COLOR_PALETTE.length];
+    }
+
+    function getVehicleDisplayPrefs(vehicleId) {
+        var prefs = vehicleDisplayPrefs[vehicleId] || {};
+        return {
+            color: prefs.color || defaultVehicleColor(vehicleId),
+            hidden: !!prefs.hidden,
+        };
+    }
+
+    function setVehicleDisplayPrefs(vehicleId, prefs) {
+        var current = getVehicleDisplayPrefs(vehicleId);
+        vehicleDisplayPrefs[vehicleId] = {
+            color: prefs.color || current.color,
+            hidden: typeof prefs.hidden === 'boolean' ? prefs.hidden : current.hidden,
+        };
+        saveVehicleDisplayPrefs();
     }
 
     function addContrastPolyline(latlngs, color, options) {
@@ -256,13 +302,11 @@ var MapModule = (function () {
         vehicleRouteLayers = {};
 
         vehicles.forEach(function (v) {
-            var color = v.status === 'broken' ? '#f38ba8'
-                : v.status === 'cleaning' ? '#a6e3a1'
-                    : (v.status === 'off_route' || v.status === 'en_route') ? '#f59e0b'
-                        : v.status === 'maintenance' ? '#7c3aed'
-                            : v.status === 'refueling' ? '#facc15'
-                                : v.status === 'dumping' ? '#06b6d4'
-                                    : '#2563eb';
+            var prefs = getVehicleDisplayPrefs(v.id);
+            if (prefs.hidden) {
+                return;
+            }
+            var color = prefs.color;
 
             var cm = L.circleMarker([v.location.lat, v.location.lng], {
                 radius: 7, color: '#ffffff', fillColor: color,
@@ -272,7 +316,8 @@ var MapModule = (function () {
                 + 'Статус: ' + (v.status || '—') + '<br>'
                 + 'Топливо: ' + (v.fuel_level != null ? v.fuel_level.toFixed(1) : '—') + ' л<br>'
                 + 'Снег: ' + (v.snow_loaded_m3 != null ? v.snow_loaded_m3.toFixed(2) : '—') + ' м³<br>'
-                + 'Скорость: ' + (v.speed_kmh != null ? v.speed_kmh.toFixed(1) : '—') + ' км/ч<br>'
+                + 'Текущая скорость: ' + (v.speed_kmh != null ? v.speed_kmh.toFixed(1) : '—') + ' км/ч<br>'
+                + 'Движение / уборка: ' + (v.travel_speed_kmh != null ? v.travel_speed_kmh.toFixed(1) : '—') + ' / ' + (v.cleaning_speed_kmh != null ? v.cleaning_speed_kmh.toFixed(1) : '—') + ' км/ч<br>'
                 + 'Цель: ' + ((v.target_type || '—') + (v.target_id ? ' / ' + v.target_id : '')) + '<br>'
                 + 'Дорога: ' + (v.current_road || v.current_edge || '—')
             );
@@ -280,7 +325,13 @@ var MapModule = (function () {
                 window.location.href = '/static/vehicle-state.html?id=' + encodeURIComponent(v.id);
             });
 
-            if ((v.status === 'off_route' || v.status === 'en_route') && v.target_location) {
+            if ((v.status === 'off_route'
+                    || v.status === 'en_route'
+                    || v.status === 'dumping'
+                    || v.status === 'refueling'
+                    || v.status === 'maintenance'
+                    || (v.status === 'cleaning' && v.target_type === 'road_start'))
+                    && v.target_location) {
                 var routePoints = [[v.location.lat, v.location.lng]];
                 if (v.path_waypoints && v.path_waypoints.length) {
                     v.path_waypoints.forEach(function (wp) {
@@ -404,6 +455,8 @@ var MapModule = (function () {
         clearObjectMarkers: clearObjectMarkers,
         updateVehicles: updateVehicles,
         clearVehicles: clearVehicles,
+        getVehicleDisplayPrefs: getVehicleDisplayPrefs,
+        setVehicleDisplayPrefs: setVehicleDisplayPrefs,
         drawRoute: drawRoute,
         clearRoute: clearRoute,
         addTaskRoute: addTaskRoute,

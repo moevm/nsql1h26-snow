@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Пользователь — Уборка снега СПб</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div id="app-header"></div>
+    <div id="toast-container"></div>
+    <div class="page-content">
+        <a href="/static/users.html" class="back-link">&larr; Назад к пользователям</a>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 id="user-title">Загрузка...</h2>
+            <div class="btn-group">
+                <button id="btn-edit" class="btn-blue">Редактировать</button>
+                <button id="btn-change-password" class="btn-blue">Сменить пароль</button>
+                <button id="btn-delete" class="btn-red">Удалить</button>
+            </div>
+        </div>
+
+        <div class="detail-grid">
+            <div class="detail-card" id="view-card">
+                <h3>Атрибуты</h3>
+                <div id="user-attrs"></div>
+            </div>
+
+            <div class="detail-card" id="edit-card" style="display:none">
+                <h3>Редактирование</h3>
+                <div class="form-row"><label>Имя: <input id="e-name" type="text" /></label></div>
+                <div class="form-row"><label>Роль:
+                    <select id="e-role">
+                        <option value="operator">operator</option>
+                        <option value="admin">admin</option>
+                    </select>
+                </label></div>
+                <div class="btn-group">
+                    <button id="btn-save" class="btn-green">Сохранить</button>
+                    <button id="btn-cancel-edit">Отмена</button>
+                </div>
+            </div>
+
+            <div class="detail-card" id="password-card" style="display:none">
+                <h3>Смена пароля</h3>
+                <div class="form-row"><label>Новый пароль: <input id="p-new" type="password" /></label></div>
+                <div class="form-row"><label>Подтвердите пароль: <input id="p-confirm" type="password" /></label></div>
+                <div id="p-error" style="color:var(--red);font-size:0.85rem;margin-top:4px;display:none"></div>
+                <div class="btn-group">
+                    <button id="btn-save-password" class="btn-green">Сохранить пароль</button>
+                    <button id="btn-cancel-password">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/user-detail.js"></script>
+</body>
+</html>

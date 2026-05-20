@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Маршрут — Уборка снега СПб</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div id="app-header"></div>
+    <div id="toast-container"></div>
+    <div class="page-content">
+        <a href="/static/routes.html" class="back-link">&larr; Назад к маршрутам</a>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 id="route-title">Загрузка...</h2>
+            <div class="btn-group">
+                <button id="btn-edit" class="btn-blue">Редактировать</button>
+                <button id="btn-delete" class="btn-red">Удалить</button>
+            </div>
+        </div>
+        <div id="route-map" class="detail-map"></div>
+        <div class="detail-grid">
+            <div class="detail-card" id="view-card">
+                <h3>Атрибуты</h3>
+                <div id="route-attrs"></div>
+            </div>
+            <div class="detail-card" id="edit-card" style="display:none">
+                <h3>Редактирование</h3>
+                <div class="form-row"><label>Название: <input id="e-label" type="text" /></label></div>
+                <div class="btn-group">
+                    <button id="btn-save" class="btn-green">Сохранить</button>
+                    <button id="btn-cancel-edit">Отмена</button>
+                </div>
+            </div>
+            <div class="detail-card">
+                <h3>Улицы</h3>
+                <ul class="streets-list" id="route-streets"></ul>
+            </div>
+        </div>
+
+        <div class="detail-card" style="margin-bottom:16px">
+            <h3>Точки маршрута</h3>
+            <table class="data-table" id="route-points-table">
+                <thead><tr><th>#</th><th>ID точки</th><th>Широта</th><th>Долгота</th><th>Тип</th></tr></thead>
+                <tbody id="route-points-tbody"></tbody>
+            </table>
+            <div id="route-points-empty" class="empty-state" style="display:none">Точки не найдены (маршрут мог быть создан до обновления)</div>
+            <div id="route-points-pagination" class="pagination" style="margin-top:8px"></div>
+        </div>
+
+        <div class="detail-card" style="margin-bottom:16px">
+            <h3>Промежуточные точки (WAYPOINT)</h3>
+            <table class="data-table" id="waypoints-table">
+                <thead><tr><th>#</th><th>ID точки</th><th>Широта</th><th>Долгота</th><th>Роль</th></tr></thead>
+                <tbody id="waypoints-tbody"></tbody>
+            </table>
+            <div id="waypoints-empty" class="empty-state" style="display:none">Нет промежуточных точек</div>
+
+            <div style="margin-top:14px">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+                    <strong style="font-size:0.9rem">Добавить / изменить точку</strong>
+                    <button id="btn-pick-on-map" class="btn-blue" style="padding:3px 10px;font-size:0.8rem">📍 Выбрать на карте</button>
+                    <span id="wp-pick-hint" style="font-size:0.8rem;color:var(--text-dim);display:none">Кликните по карте выше</span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                    <div class="form-row"><label>Широта: <input id="wp-lat" type="number" step="0.00001" /></label></div>
+                    <div class="form-row"><label>Долгота: <input id="wp-lng" type="number" step="0.00001" /></label></div>
+                    <div class="form-row"><label>Роль:
+                        <select id="wp-role">
+                            <option value="waypoint">Промежуточная (перед финишем)</option>
+                            <option value="start">Старт (заменяет текущий)</option>
+                            <option value="end">Финиш (заменяет текущий)</option>
+                        </select>
+                    </label></div>
+                    <button id="btn-add-waypoint" class="btn-green">Добавить / заменить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/route-detail.js"></script>
+</body>
+</html>

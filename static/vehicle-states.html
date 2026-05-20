@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Машины — Уборка снега СПб</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div id="app-header"></div>
+    <div id="toast-container"></div>
+    <div class="page-content">
+        <h2>Машины</h2>
+        <div class="filter-section">
+            <div class="filter-row">
+                <label>ID симуляции: <input id="f-sim-id" type="text" /></label>
+                <label>Статус:
+                    <select id="f-status">
+                        <option value="">Все</option>
+                        <option value="idle">idle</option>
+                        <option value="off_route">off_route</option>
+                        <option value="en_route">en_route</option>
+                        <option value="cleaning">cleaning</option>
+                        <option value="dumping">dumping</option>
+                        <option value="refueling">refueling</option>
+                        <option value="broken">broken</option>
+                        <option value="maintenance">maintenance</option>
+                    </select>
+                </label>
+                <label>Тип:
+                    <select id="f-type">
+                        <option value="">Все</option>
+                        <option value="tractor">Трактор</option>
+                    </select>
+                </label>
+                <button id="btn-filter" class="btn-blue">Найти</button>
+                <button id="btn-reset">Сброс</button>
+                <span id="result-count" style="color:var(--text-dim);font-size:0.85rem;"></span>
+            </div>
+        </div>
+        <div id="loading" class="loading-indicator" style="display:none">Загрузка...</div>
+        <table class="data-table" id="vs-table" style="display:none">
+            <thead><tr>
+                <th>ID</th><th>Симуляция</th><th>Тип</th><th>Статус</th><th>Широта</th><th>Долгота</th>
+                <th>Топливо</th><th>Снег (м³)</th><th>Дистанция</th><th>Последний тик</th>
+            </tr></thead>
+            <tbody id="vs-tbody"></tbody>
+        </table>
+        <div class="pagination" id="pagination"></div>
+        <div id="empty-state" class="empty-state" style="display:none">Состояния не найдены</div>
+    </div>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/vehicle-states-page.js"></script>
+</body>
+</html>

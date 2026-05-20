@@ -18,7 +18,6 @@ from app.models.schemas import (
 
 logger = logging.getLogger(__name__)
 
-
 class SimulationEngine:
 
     def __init__(
@@ -42,6 +41,7 @@ class SimulationEngine:
         self._roads_cleaned: int = 0
         self._route_stats: dict[str, dict] = {}
         self._edge_route_map: dict[str, set[str]] = {}
+        self._cleaned_edges: set[str] = set()
         self._assigned_roads: dict[str, dict] = {}
         self._streets: set[str] = set()
         self._total_fuel: float = 0.0
@@ -154,7 +154,8 @@ class SimulationEngine:
         for vehicle in self.vehicles:
             await self._advance_vehicle(vehicle)
 
-        # Mark all roads done once — vehicles will be sent to parking
+        self._reconcile_completion_state()
+
         if not self._all_roads_done and not self._uncleaned and self._roads_cleaned >= self._roads_total:
             self._all_roads_done = True
             logger.info("Simulation %s: all roads cleaned, sending vehicles to parking", self.sim_id)
@@ -224,29 +225,35 @@ class SimulationEngine:
                         type=cfg.type,
                         status=cfg.initial_status,
                         location=loc,
+                        home_parking_id=parking.get("id"),
+                        home_parking_location=LatLng(lat=loc.lat, lng=loc.lng),
                         fuel_level=cfg.fuel_capacity_l,
-                        speed_kmh=cfg.speed_kmh,
+                        speed_kmh=0.0,
+                        travel_speed_kmh=cfg.travel_speed_kmh,
+                        cleaning_speed_kmh=cfg.cleaning_speed_kmh,
+                        fuel_consumption_l_per_km=cfg.fuel_consumption_l_per_km,
                         fuel_capacity_l=cfg.fuel_capacity_l,
                         snow_capacity_m3=cfg.capacity_m3,
                         breakdown_probability=cfg.breakdown_probability,
+                        repair_time_min=cfg.repair_time_min,
                         repair_remaining_min=cfg.repair_time_min if cfg.initial_status == VehicleStatus.MAINTENANCE else 0.0,
                     )
                 )
 
     async def _advance_vehicle(self, vehicle: VehicleState) -> None:
         if vehicle.status == VehicleStatus.BROKEN:
+            vehicle.speed_kmh = 0.0
             await self._send_to_maintenance(vehicle)
             return
 
         if vehicle.status == VehicleStatus.MAINTENANCE:
-            # Still traveling to service station
             if vehicle.target_location and (
                 vehicle.path_waypoints
                 or self._distance_m(vehicle.location, vehicle.target_location) > 0.5
             ):
                 await self._move_to_target(vehicle)
                 return
-            # At service station — count down repair
+            vehicle.speed_kmh = 0.0
             vehicle.repair_remaining_min = max(0.0, vehicle.repair_remaining_min - self.params.tick_duration_min)
             if vehicle.repair_remaining_min <= 0:
                 vehicle.target_type = None
@@ -254,44 +261,52 @@ class SimulationEngine:
                 vehicle.target_location = None
                 vehicle.path_waypoints = []
                 vehicle.status = VehicleStatus.IDLE
+                vehicle.speed_kmh = 0.0
                 self._emit(vehicle, "repaired")
             return
 
         if vehicle.status == VehicleStatus.REFUELING:
-            # Still traveling to service station
             if vehicle.target_location and (
                 vehicle.path_waypoints
                 or self._distance_m(vehicle.location, vehicle.target_location) > 0.5
             ):
                 await self._move_to_target(vehicle)
                 return
-            # At service station — refuel
+            vehicle.speed_kmh = 0.0
             vehicle.fuel_level = vehicle.fuel_capacity_l
             vehicle.target_type = None
             vehicle.target_id = None
             vehicle.target_location = None
             vehicle.path_waypoints = []
             vehicle.status = VehicleStatus.IDLE
+            vehicle.speed_kmh = 0.0
             self._emit(vehicle, "refueled")
             return
 
         if vehicle.status == VehicleStatus.DUMPING:
-            # Still traveling to snow polygon
             if vehicle.target_location and (
                 vehicle.path_waypoints
                 or self._distance_m(vehicle.location, vehicle.target_location) > 0.5
             ):
                 await self._move_to_target(vehicle)
                 return
-            # At snow polygon — dump snow
+            vehicle.speed_kmh = 0.0
             vehicle.snow_loaded_m3 = max(0.0, vehicle.snow_loaded_m3 - self.params.snow_melt_rate_m3_per_tick)
             if vehicle.snow_loaded_m3 <= 0.001:
                 vehicle.snow_loaded_m3 = 0.0
+                if vehicle.current_edge and vehicle.road_target_location and vehicle.road_resume_location:
+                    await self._set_target(vehicle, "road_resume", None, vehicle.road_resume_location)
+                    vehicle.status = VehicleStatus.EN_ROUTE
+                    self._emit(vehicle, "dumped_snow")
+                    return
+                vehicle.road_target_location = None
+                vehicle.road_resume_location = None
                 vehicle.target_type = None
                 vehicle.target_id = None
                 vehicle.target_location = None
                 vehicle.path_waypoints = []
                 vehicle.status = VehicleStatus.IDLE
+                vehicle.speed_kmh = 0.0
                 self._emit(vehicle, "dumped_snow")
             return
 
@@ -300,14 +315,35 @@ class SimulationEngine:
             return
 
         if vehicle.status == VehicleStatus.CLEANING:
-            await self._clean_current_edge(vehicle)
+            if vehicle.current_edge:
+                await self._clean_current_edge(vehicle)
+                return
+            if vehicle.target_type == "road_start":
+                await self._move_to_target(vehicle)
+                return
+            vehicle.speed_kmh = 0.0
+            vehicle.status = VehicleStatus.IDLE
             return
 
     async def _assign_idle_vehicles(self) -> None:
         for vehicle in self.vehicles:
             if vehicle.status != VehicleStatus.IDLE:
                 continue
-            if vehicle.snow_capacity_m3 > 0 and vehicle.snow_loaded_m3 >= vehicle.snow_capacity_m3 * (self.params.dump_threshold_pct / 100):
+            vehicle.speed_kmh = 0.0
+            if vehicle.current_edge:
+                if vehicle.road_target_location or vehicle.target_location:
+                    vehicle.status = VehicleStatus.CLEANING
+                    continue
+                vehicle.current_edge = None
+                vehicle.current_road = None
+                vehicle.progress_m = 0.0
+            if self._all_roads_done:
+                if vehicle.snow_loaded_m3 > 0.01:
+                    await self._send_to_dump(vehicle)
+                    continue
+                await self._send_to_parking(vehicle)
+                continue
+            if self._should_dump(vehicle):
                 await self._send_to_dump(vehicle)
                 continue
             if vehicle.fuel_capacity_l > 0 and vehicle.fuel_level <= vehicle.fuel_capacity_l * (self.params.refuel_threshold_pct / 100):
@@ -317,28 +353,27 @@ class SimulationEngine:
                 road = self._uncleaned.pop(0)
                 self._assigned_roads[vehicle.id] = road
                 await self._set_target(vehicle, "road_start", road["src"], LatLng(lat=road["src_lat"], lng=road["src_lng"]))
-                vehicle.status = VehicleStatus.EN_ROUTE
+                vehicle.status = VehicleStatus.CLEANING
                 self._emit(vehicle, "assigned_task", road=self._road_label(road))
                 continue
-            if vehicle.snow_loaded_m3 > 0:
+            if vehicle.snow_loaded_m3 > 0.01:
                 await self._send_to_dump(vehicle)
-                continue
-            # All roads done — send vehicles back to parking
-            if self._all_roads_done:
-                await self._send_to_parking(vehicle)
                 continue
 
     async def _move_to_target(self, vehicle: VehicleState) -> None:
         target = vehicle.target_location
         if not target:
+            vehicle.target_type = None
+            vehicle.target_id = None
+            vehicle.path_waypoints = []
             vehicle.status = VehicleStatus.IDLE
             return
 
         distance_per_tick = self._distance_per_tick(vehicle)
+        vehicle.speed_kmh = vehicle.travel_speed_kmh
         remaining = distance_per_tick
         total_travelled = 0.0
 
-        # If we have path waypoints, move through them first
         while remaining > 0 and vehicle.path_waypoints:
             next_wp = vehicle.path_waypoints[0]
             dist_to_wp = self._distance_m(vehicle.location, next_wp)
@@ -360,7 +395,6 @@ class SimulationEngine:
                 total_travelled += remaining
                 remaining = 0
 
-        # After waypoints exhausted, move to final target
         if not vehicle.path_waypoints:
             distance_to_target = self._distance_m(vehicle.location, target)
             if distance_to_target < 0.5:
@@ -382,7 +416,6 @@ class SimulationEngine:
             await self._arrive_at_target(vehicle)
             return
 
-        # Still have waypoints but ran out of distance for this tick
         if total_travelled > 0 and self._check_breakdown(vehicle):
             return
 
@@ -392,24 +425,30 @@ class SimulationEngine:
             road = self._assigned_roads.pop(vehicle.id, None)
             if not road:
                 vehicle.status = VehicleStatus.IDLE
+                vehicle.speed_kmh = 0.0
                 return
-            # Check if this edge was already cleaned while we were en route
             src_id, dst_id = road["src"], road["dst"]
-            is_clean = await self.graph.is_road_cleaned(src_id, dst_id)
-            if is_clean:
+            road_state = await self.graph.get_road_state(src_id, dst_id)
+            is_clean = bool(road_state and road_state.get("cleaned", False))
+            total_distance = max(float((road_state or {}).get("distance") or road.get("distance") or 0.0), 1.0)
+            cleaned_m = max(0.0, min(float((road_state or {}).get("cleaned_m") or 0.0), total_distance))
+            if is_clean or cleaned_m + 0.1 >= total_distance:
                 vehicle.target_type = None
                 vehicle.target_id = None
                 vehicle.target_location = None
                 vehicle.path_waypoints = []
                 vehicle.status = VehicleStatus.IDLE
+                vehicle.speed_kmh = 0.0
                 self._emit(vehicle, "skipped_already_clean", road=self._road_label(road))
                 return
             vehicle.status = VehicleStatus.CLEANING
             vehicle.current_edge = f"{road['src']}->{road['dst']}"
             vehicle.current_road = self._road_label(road)
-            vehicle.progress_m = 0.0
+            vehicle.progress_m = cleaned_m
             vehicle.target_id = road["dst"]
             vehicle.target_location = LatLng(lat=road["dst_lat"], lng=road["dst_lng"])
+            vehicle.road_target_location = LatLng(lat=road["dst_lat"], lng=road["dst_lng"])
+            vehicle.road_resume_location = None
             vehicle.path_waypoints = []
             if road.get("route_id") and road["route_id"] in self._route_stats:
                 route_stats = self._route_stats[road["route_id"]]
@@ -423,6 +462,15 @@ class SimulationEngine:
             vehicle.path_waypoints = []
             self._emit(vehicle, "snow_full")
             return
+        if target_type == "road_resume":
+            vehicle.status = VehicleStatus.CLEANING
+            vehicle.target_type = None
+            vehicle.target_id = None
+            vehicle.target_location = vehicle.road_target_location
+            vehicle.road_resume_location = None
+            vehicle.path_waypoints = []
+            self._emit(vehicle, "resumed_cleaning", road=vehicle.current_road)
+            return
         if target_type == "service_station_refuel":
             vehicle.status = VehicleStatus.REFUELING
             vehicle.path_waypoints = []
@@ -431,8 +479,7 @@ class SimulationEngine:
         if target_type == "service_station_maintenance":
             vehicle.status = VehicleStatus.MAINTENANCE
             vehicle.path_waypoints = []
-            cfg = self._vehicle_cfg(vehicle.type)
-            vehicle.repair_remaining_min = cfg.repair_time_min if cfg else self.params.tick_duration_min
+            vehicle.repair_remaining_min = vehicle.repair_time_min or self.params.tick_duration_min
             self._emit(vehicle, "maintenance_started")
             return
         if target_type == "parking":
@@ -441,72 +488,102 @@ class SimulationEngine:
             vehicle.target_location = None
             vehicle.path_waypoints = []
             vehicle.status = VehicleStatus.IDLE
+            vehicle.speed_kmh = 0.0
             self._emit(vehicle, "returned_to_parking")
             return
         vehicle.status = VehicleStatus.IDLE
+        vehicle.speed_kmh = 0.0
 
     async def _clean_current_edge(self, vehicle: VehicleState) -> None:
-        if not vehicle.current_edge or not vehicle.target_location:
+        road_target = vehicle.road_target_location or vehicle.target_location
+        if not vehicle.current_edge or not road_target:
             vehicle.status = VehicleStatus.IDLE
             return
 
-        src_id, dst_id = vehicle.current_edge.split("->", 1)
-        total_distance = max(self._distance_m(vehicle.location, vehicle.target_location) + vehicle.progress_m, 1.0)
-        travelled = min(self._distance_per_tick(vehicle), total_distance - vehicle.progress_m)
-        vehicle.progress_m += travelled
-        if travelled > 0:
-            vehicle.location = self._move_towards(vehicle.location, vehicle.target_location, travelled)
-            vehicle.distance_travelled_km += travelled / 1000.0
-            self._consume_fuel(vehicle, travelled)
+        vehicle.speed_kmh = vehicle.cleaning_speed_kmh
+        remaining_cleaning_m = self._distance_per_tick(vehicle, mode="cleaning")
 
-        if vehicle.progress_m + 0.1 < total_distance:
-            self._check_breakdown(vehicle)
-            return
+        while remaining_cleaning_m > 0 and vehicle.current_edge and road_target:
+            src_id, dst_id = vehicle.current_edge.split("->", 1)
+            total_distance = max(self._distance_m(vehicle.location, road_target) + vehicle.progress_m, 1.0)
+            segment_remaining_m = max(0.0, total_distance - vehicle.progress_m)
+            capacity_limited_m = self._capacity_limited_cleaning_distance(vehicle)
+            if capacity_limited_m <= 0:
+                vehicle.road_resume_location = LatLng(lat=vehicle.location.lat, lng=vehicle.location.lng)
+                vehicle.target_location = road_target
+                await self._send_to_dump(vehicle)
+                return
 
-        await self.graph.mark_road_cleaned(src_id, dst_id)
-        vehicle.location = LatLng(lat=vehicle.target_location.lat, lng=vehicle.target_location.lng)
-        vehicle.progress_m = 0.0
-        self._roads_cleaned += 1
-        snow_gain = self._estimate_snow_volume(total_distance)
-        vehicle.snow_loaded_m3 = min(vehicle.snow_capacity_m3, vehicle.snow_loaded_m3 + snow_gain)
-        self.state.snow_collected_m3 = round(self.state.snow_collected_m3 + snow_gain, 2)
-        self._emit(vehicle, "segment_cleaned", road=vehicle.current_road)
+            travelled = min(remaining_cleaning_m, segment_remaining_m, capacity_limited_m)
+            vehicle.progress_m += travelled
+            if travelled > 0:
+                vehicle.location = self._move_towards(vehicle.location, road_target, travelled)
+                vehicle.distance_travelled_km += travelled / 1000.0
+                self._consume_fuel(vehicle, travelled)
+                self.state.snow_collected_m3 = round(self.state.snow_collected_m3 + self._estimate_snow_volume(travelled), 2)
+                vehicle.snow_loaded_m3 = min(
+                    vehicle.snow_capacity_m3,
+                    vehicle.snow_loaded_m3 + self._estimate_snow_volume(travelled),
+                )
+                remaining_cleaning_m -= travelled
+                await self.graph.update_road_cleaning_progress(src_id, dst_id, vehicle.progress_m)
 
-        await self._mark_route_edge_cleaned(src_id, dst_id)
-        vehicle.current_edge = None
-        vehicle.current_road = None
-        vehicle.target_id = None
-        vehicle.target_location = None
-        vehicle.target_type = None
-        vehicle.path_waypoints = []
+            if vehicle.progress_m + 0.1 < total_distance:
+                if self._should_dump(vehicle):
+                    vehicle.road_resume_location = LatLng(lat=vehicle.location.lat, lng=vehicle.location.lng)
+                    vehicle.target_location = road_target
+                    await self._send_to_dump(vehicle)
+                    return
+                self._check_breakdown(vehicle)
+                return
 
-        # After cleaning a segment, try to pick up the next one directly
-        # without going through IDLE → OFF_ROUTE cycle
-        if not self._all_roads_done and self._uncleaned:
-            next_road = self._uncleaned.pop(0)
-            self._assigned_roads[vehicle.id] = next_road
-            # Check if vehicle needs dump/refuel first
-            if (vehicle.snow_capacity_m3 > 0
-                    and vehicle.snow_loaded_m3 >= vehicle.snow_capacity_m3 * (self.params.dump_threshold_pct / 100)):
-                self._uncleaned.insert(0, next_road)
-                self._assigned_roads.pop(vehicle.id, None)
+            await self.graph.mark_road_cleaned(src_id, dst_id)
+            vehicle.location = LatLng(lat=road_target.lat, lng=road_target.lng)
+            vehicle.progress_m = 0.0
+            self._mark_edge_cleaned(src_id, dst_id)
+            self._emit(vehicle, "segment_cleaned", road=vehicle.current_road)
+
+            await self._mark_route_edge_cleaned(src_id, dst_id)
+            vehicle.current_edge = None
+            vehicle.current_road = None
+            vehicle.target_id = None
+            vehicle.target_location = None
+            vehicle.target_type = None
+            vehicle.road_target_location = None
+            vehicle.road_resume_location = None
+            vehicle.path_waypoints = []
+
+            if self._should_dump(vehicle):
                 await self._send_to_dump(vehicle)
                 return
             if (vehicle.fuel_capacity_l > 0
                     and vehicle.fuel_level <= vehicle.fuel_capacity_l * (self.params.refuel_threshold_pct / 100)):
-                self._uncleaned.insert(0, next_road)
-                self._assigned_roads.pop(vehicle.id, None)
                 await self._send_to_refuel(vehicle)
                 return
-            # Go directly to next road — travel to its start
+
+            if self._all_roads_done or not self._uncleaned:
+                vehicle.status = VehicleStatus.IDLE
+                vehicle.speed_kmh = 0.0
+                return
+
+            next_road = self._uncleaned.pop(0)
+            self._assigned_roads[vehicle.id] = next_road
             await self._set_target(
                 vehicle, "road_start", next_road["src"],
                 LatLng(lat=next_road["src_lat"], lng=next_road["src_lng"]),
             )
-            vehicle.status = VehicleStatus.EN_ROUTE
+            vehicle.status = VehicleStatus.CLEANING
             self._emit(vehicle, "assigned_task", road=self._road_label(next_road))
-        else:
+
+            if vehicle.path_waypoints or self._distance_m(vehicle.location, vehicle.target_location) > 0.5:
+                return
+
+            await self._arrive_at_target(vehicle)
+            road_target = vehicle.road_target_location or vehicle.target_location
+
+        if not vehicle.current_edge and vehicle.status == VehicleStatus.CLEANING:
             vehicle.status = VehicleStatus.IDLE
+            vehicle.speed_kmh = 0.0
 
     async def _mark_route_edge_cleaned(self, src_id: str, dst_id: str) -> None:
         for route_id in self._edge_route_map.get(f"{src_id}->{dst_id}", set()):
@@ -551,7 +628,30 @@ class SimulationEngine:
     async def _send_to_dump(self, vehicle: VehicleState) -> None:
         facility = self._nearest_object(vehicle.location, self._snow_polygons)
         if not facility:
+            vehicle.snow_loaded_m3 = 0.0
+            if vehicle.current_edge and vehicle.road_target_location and vehicle.road_resume_location:
+                vehicle.location = LatLng(lat=vehicle.road_resume_location.lat, lng=vehicle.road_resume_location.lng)
+                vehicle.target_type = None
+                vehicle.target_id = None
+                vehicle.target_location = vehicle.road_target_location
+                vehicle.road_resume_location = None
+                vehicle.path_waypoints = []
+                vehicle.status = VehicleStatus.CLEANING
+                vehicle.speed_kmh = 0.0
+                self._emit(vehicle, "dumped_snow")
+                return
+            vehicle.target_type = None
+            vehicle.target_id = None
+            vehicle.target_location = None
+            vehicle.current_edge = None
+            vehicle.current_road = None
+            vehicle.road_target_location = None
+            vehicle.road_resume_location = None
+            vehicle.progress_m = 0.0
+            vehicle.path_waypoints = []
             vehicle.status = VehicleStatus.IDLE
+            vehicle.speed_kmh = 0.0
+            self._emit(vehicle, "dumped_snow")
             return
         await self._set_target(
             vehicle,
@@ -576,18 +676,29 @@ class SimulationEngine:
         vehicle.status = VehicleStatus.REFUELING
 
     async def _send_to_parking(self, vehicle: VehicleState) -> None:
-        parking = self._nearest_object(vehicle.location, self._parking_locations)
-        if not parking:
+        parking_loc = vehicle.home_parking_location
+        parking_id = vehicle.home_parking_id
+        if not parking_loc:
+            parking = self._nearest_object(vehicle.location, self._parking_locations)
+            if not parking:
+                return
+            parking_id = parking.get("id")
+            parking_loc = LatLng(lat=float(parking["lat"]), lng=float(parking["lng"]))
+        if not parking_loc:
             return
-        parking_loc = LatLng(lat=float(parking["lat"]), lng=float(parking["lng"]))
         if self._distance_m(vehicle.location, parking_loc) < 1.0:
             vehicle.target_type = None
             vehicle.target_id = None
             vehicle.target_location = None
+            vehicle.current_edge = None
+            vehicle.current_road = None
+            vehicle.road_target_location = None
+            vehicle.road_resume_location = None
+            vehicle.progress_m = 0.0
             vehicle.path_waypoints = []
             vehicle.status = VehicleStatus.IDLE
             return
-        await self._set_target(vehicle, "parking", parking.get("id"), parking_loc)
+        await self._set_target(vehicle, "parking", parking_id, parking_loc)
         vehicle.status = VehicleStatus.EN_ROUTE
 
     async def _set_target(self, vehicle: VehicleState, target_type: str, target_id: str | None, target_location: LatLng) -> None:
@@ -597,7 +708,6 @@ class SimulationEngine:
         vehicle.path_waypoints = await self._compute_path_waypoints(vehicle.location, target_location)
 
     async def _compute_path_waypoints(self, origin: LatLng, destination: LatLng) -> list[LatLng]:
-        """Compute intermediate waypoints along the road graph from origin to destination."""
         start_node = await self.graph.find_nearest_node(origin.lat, origin.lng)
         end_node = await self.graph.find_nearest_node(destination.lat, destination.lng)
         if not start_node or not end_node or start_node["id"] == end_node["id"]:
@@ -605,7 +715,6 @@ class SimulationEngine:
         path = await self.graph.find_shortest_path(start_node["id"], end_node["id"])
         if not path or not path.get("nodes"):
             return []
-        # Skip the first node if it's very close to origin (we're already there)
         waypoints: list[LatLng] = []
         nodes = path["nodes"]
         for i, node in enumerate(nodes):
@@ -624,14 +733,14 @@ class SimulationEngine:
     def _vehicle_cfg(self, vehicle_type: VehicleType) -> VehicleConfig | None:
         return self._vehicle_cfg_by_type.get(vehicle_type)
 
-    def _distance_per_tick(self, vehicle: VehicleState) -> float:
-        return vehicle.speed_kmh * 1000.0 * self.params.tick_duration_min / 60.0 * self.params.speed_multiplier
+    def _distance_per_tick(self, vehicle: VehicleState, mode: str = "travel") -> float:
+        speed_kmh = vehicle.cleaning_speed_kmh if mode == "cleaning" else vehicle.travel_speed_kmh
+        return speed_kmh * 1000.0 * self.params.tick_duration_min / 60.0 * self.params.speed_multiplier
 
     def _consume_fuel(self, vehicle: VehicleState, distance_m: float) -> None:
-        cfg = self._vehicle_cfg(vehicle.type)
-        if not cfg or distance_m <= 0:
+        if distance_m <= 0:
             return
-        fuel_used = cfg.fuel_consumption_l_per_km * (distance_m / 1000.0)
+        fuel_used = vehicle.fuel_consumption_l_per_km * (distance_m / 1000.0)
         vehicle.fuel_level = max(0.0, vehicle.fuel_level - fuel_used)
         self._total_fuel += fuel_used
 
@@ -643,17 +752,19 @@ class SimulationEngine:
         assigned_road = self._assigned_roads.pop(vehicle.id, None)
         if assigned_road:
             self._uncleaned.insert(0, assigned_road)
-        elif vehicle.current_edge and vehicle.target_location:
+        elif vehicle.current_edge and (vehicle.road_target_location or vehicle.target_location):
             src_id, dst_id = vehicle.current_edge.split("->", 1)
+            road_start = vehicle.road_resume_location or vehicle.location
+            road_target = vehicle.road_target_location or vehicle.target_location
             self._uncleaned.insert(0, {
                 "src": src_id,
                 "dst": dst_id,
-                "src_lat": vehicle.location.lat,
-                "src_lng": vehicle.location.lng,
-                "dst_lat": vehicle.target_location.lat,
-                "dst_lng": vehicle.target_location.lng,
+                "src_lat": road_start.lat,
+                "src_lng": road_start.lng,
+                "dst_lat": road_target.lat,
+                "dst_lng": road_target.lng,
                 "name": vehicle.current_road,
-                "distance": max(self._distance_m(vehicle.location, vehicle.target_location), 1.0),
+                "distance": max(self._distance_m(road_start, road_target), 1.0),
                 "route_id": None,
                 "cleaned": False,
             })
@@ -661,24 +772,47 @@ class SimulationEngine:
         vehicle.current_road = None
         vehicle.current_edge = None
         vehicle.progress_m = 0.0
+        vehicle.road_target_location = None
+        vehicle.road_resume_location = None
         vehicle.path_waypoints = []
         self._total_breakdowns += 1
         self._emit(vehicle, "breakdown")
         return True
 
+    def _mark_edge_cleaned(self, src_id: str, dst_id: str) -> None:
+        edge_key = f"{src_id}->{dst_id}"
+        if edge_key in self._cleaned_edges:
+            return
+        self._cleaned_edges.add(edge_key)
+        self._roads_cleaned = min(self._roads_total, self._roads_cleaned + 1)
+
+    def _reconcile_completion_state(self) -> None:
+        if self._uncleaned or self._assigned_roads:
+            return
+        if any(v.current_edge for v in self.vehicles):
+            return
+        if self._roads_total > 0:
+            self._roads_cleaned = self._roads_total
+
     def _should_finish(self) -> bool:
         if not self._all_roads_done:
             return False
+        if self._uncleaned or self._assigned_roads:
+            return False
         for vehicle in self.vehicles:
+            if vehicle.current_edge:
+                return False
             if vehicle.status != VehicleStatus.IDLE:
                 return False
             if vehicle.snow_loaded_m3 > 0.01:
                 return False
-            parking = self._nearest_object(vehicle.location, self._parking_locations)
-            if parking:
-                parking_loc = LatLng(lat=float(parking["lat"]), lng=float(parking["lng"]))
-                if self._distance_m(vehicle.location, parking_loc) > 1.0:
-                    return False
+            parking_loc = vehicle.home_parking_location
+            if not parking_loc:
+                parking = self._nearest_object(vehicle.location, self._parking_locations)
+                if parking:
+                    parking_loc = LatLng(lat=float(parking["lat"]), lng=float(parking["lng"]))
+            if parking_loc and self._distance_m(vehicle.location, parking_loc) > 1.0:
+                return False
         return True
 
     def _refresh_state_metrics(self) -> None:
@@ -699,9 +833,31 @@ class SimulationEngine:
             self.state.avg_snow_load_pct = 0.0
 
     def _estimate_snow_volume(self, distance_m: float) -> float:
+        return round(distance_m * self._snow_volume_per_meter(), 3)
+
+    def _snow_volume_per_meter(self) -> float:
         default_width_m = 8.0
         snow_height_m = self.params.snowfall_cm / 100.0
-        return round(distance_m * default_width_m * snow_height_m * 0.35, 3)
+        return default_width_m * snow_height_m * 0.35
+
+    def _dump_threshold_m3(self, vehicle: VehicleState) -> float:
+        if vehicle.snow_capacity_m3 <= 0:
+            return 0.0
+        return vehicle.snow_capacity_m3 * (self.params.dump_threshold_pct / 100)
+
+    def _should_dump(self, vehicle: VehicleState) -> bool:
+        threshold = self._dump_threshold_m3(vehicle)
+        return threshold > 0 and vehicle.snow_loaded_m3 + 0.001 >= threshold
+
+    def _capacity_limited_cleaning_distance(self, vehicle: VehicleState) -> float:
+        threshold = self._dump_threshold_m3(vehicle)
+        if threshold <= 0:
+            return math.inf
+        remaining_m3 = max(0.0, threshold - vehicle.snow_loaded_m3)
+        volume_per_meter = self._snow_volume_per_meter()
+        if volume_per_meter <= 0:
+            return math.inf
+        return remaining_m3 / volume_per_meter
 
     def _emit(self, vehicle: VehicleState, event: str, road: str | None = None) -> None:
         self._last_tick_events.append({

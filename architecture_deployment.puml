@@ -1,0 +1,42 @@
+@startuml architecture_deployment
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма развёртывания — Симуляция уборки снега (СПб)
+
+Deployment_Node(browser, "Браузер оператора", "Chrome / Firefox") {
+    Container(spa, "Web Frontend", "HTML / CSS / JavaScript\nLeaflet.js, Chart.js", "Интерактивная карта,\nуправление симуляцией")
+}
+
+Deployment_Node(server, "Сервер приложения", "Linux") {
+    Deployment_Node(app_runtime, "Python 3.12-slim", "Uvicorn ASGI") {
+        Container(api, "FastAPI Application", "FastAPI 0.115\nport 8000", "REST API:\nauth, routes, objects,\nsimulation, statistics\n\nSimulationEngine,\nGraphDAO, CacheManager,\nOpenTelemetry")
+    }
+
+    Deployment_Node(neo4j_node, "Neo4j 5 Community", "Графовая БД\nport 7687 (bolt)\nport 7474 (browser)") {
+        ContainerDb(neo4j_db, "Graph Database", "Neo4j", "~571K Intersection\n~1.1M ROAD\nMapObject\n\nVolume: neo4j_data")
+    }
+
+    Deployment_Node(redis_node, "Redis 7 Alpine", "Key-Value\nport 6379") {
+        ContainerDb(redis_db, "Cache", "Redis", "Состояние симуляций\nTTL 600s")
+    }
+
+    Deployment_Node(jaeger_node, "Jaeger All-in-One", "Tracing\nport 16686 (UI)\nport 4317 (OTLP)") {
+        Container(jaeger_svc, "Jaeger", "Tracing Backend", "Сбор и визуализация\nтрассировок")
+    }
+}
+
+Deployment_Node(ext, "Внешние сервисы") {
+    System_Ext(osm_tiles, "OpenStreetMap Tiles", "Тайлы карты")
+    System_Ext(nominatim, "Nominatim API", "Геокодирование")
+}
+
+Rel(spa, api, "REST API", "HTTP/JSON :8000")
+Rel(spa, osm_tiles, "Тайлы", "HTTPS")
+Rel(spa, nominatim, "Геокодирование", "HTTPS")
+Rel(api, neo4j_db, "Cypher", "bolt:// :7687")
+Rel(api, redis_db, "Кэш", "redis:// :6379")
+Rel(api, jaeger_svc, "Трассировки", "OTLP gRPC :4317")
+
+@enduml

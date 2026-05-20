@@ -1,4 +1,3 @@
-"""Seed database with test data if empty."""
 from __future__ import annotations
 
 import json
@@ -16,16 +15,13 @@ from app.seed_data import (
 logger = logging.getLogger(__name__)
 SEED_DEMO_VERSION = "2"
 
-
 def _serialize_json_field(value):
     if isinstance(value, str):
         return value
     return json.dumps(value, ensure_ascii=False)
 
-
 def _path_json(path_nodes: list[dict]) -> str:
     return json.dumps(path_nodes, ensure_ascii=False)
-
 
 async def _build_route_through_waypoints(graph: GraphDAO, ordered_coords: list[dict]) -> dict | None:
     all_nodes: list[dict] = []
@@ -74,7 +70,6 @@ async def _build_route_through_waypoints(graph: GraphDAO, ordered_coords: list[d
         "distance_m": round(total_distance, 1),
     }
 
-
 def _route_seed_waypoints(route: dict) -> list[dict]:
     path_nodes = route.get("path_nodes") or []
     middle = path_nodes[1:-1] if len(path_nodes) > 2 else []
@@ -83,14 +78,12 @@ def _route_seed_waypoints(route: dict) -> list[dict]:
     ordered.append({"lat": route["end_lat"], "lng": route["end_lng"]})
     return ordered
 
-
 def _pick_route_position(path_nodes: list[dict], ratio: float) -> tuple[float, float]:
     if not path_nodes:
         return 0.0, 0.0
     idx = min(len(path_nodes) - 1, max(0, int(round((len(path_nodes) - 1) * ratio))))
     point = path_nodes[idx]
     return point["lat"], point["lng"]
-
 
 def _build_vehicle_rows_for_tick(
     sim: dict,
@@ -120,7 +113,7 @@ def _build_vehicle_rows_for_tick(
         vehicles.append(
             {
                 "id": f"T-{vi:04d}",
-                "type": "tractor" if vi % 2 == 0 else "loader",
+                "type": "tractor",
                 "status": status,
                 "lat": round(lat, 6),
                 "lng": round(lng, 6),
@@ -132,7 +125,6 @@ def _build_vehicle_rows_for_tick(
         )
     return vehicles
 
-
 async def _seed_map_objects_if_missing(graph: GraphDAO, map_objects: list[dict]) -> None:
     existing_objects = await graph.get_map_objects()
     if existing_objects:
@@ -140,7 +132,6 @@ async def _seed_map_objects_if_missing(graph: GraphDAO, map_objects: list[dict])
     for obj in map_objects:
         await graph.create_map_object(obj)
     logger.info("Seeded %d infrastructure objects", len(map_objects))
-
 
 async def _delete_existing_seed_demo(graph: GraphDAO) -> None:
     await graph.run_write(
@@ -172,9 +163,7 @@ async def _delete_existing_seed_demo(graph: GraphDAO) -> None:
         """
     )
 
-
 async def seed_if_empty(graph: GraphDAO) -> None:
-    """Ensure debug users exist, then seed demo data if DB has no Point nodes."""
     await ensure_debug_users(graph)
 
     graph_seed = get_seed_graph()
@@ -267,8 +256,6 @@ async def seed_if_empty(graph: GraphDAO) -> None:
                 road.get("highway"),
                 road.get("oneway", False),
                 road.get("geometry"),
-                road.get("width_m"),
-                road.get("speed_factor"),
             )
         logger.info(
             "Seeded %d Points + %d Roads from JSON",
@@ -338,6 +325,7 @@ async def seed_if_empty(graph: GraphDAO) -> None:
             "status": sim["status"],
             "tick": sim["tick"],
             "elapsed_minutes": sim["elapsed_minutes"],
+            "vehicles_total": sim.get("vehicles_total", sim["vehicles_active"]),
             "vehicles_active": sim["vehicles_active"],
             "vehicles_broken": sim["vehicles_broken"],
             "roads_cleaned_pct": sim["roads_cleaned_pct"],
@@ -416,7 +404,6 @@ async def seed_if_empty(graph: GraphDAO) -> None:
         value=SEED_DEMO_VERSION,
     )
     logger.info("Seed complete ✓")
-
 
 async def ensure_debug_users(graph: GraphDAO) -> None:
     import bcrypt

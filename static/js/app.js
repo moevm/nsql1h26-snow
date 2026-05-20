@@ -7,14 +7,24 @@ var App = (function () {
     var ROUTES_REFRESH_KEY = 'snow_routes_refresh';
     var initialSimulationId = new URLSearchParams(window.location.search).get('simulation_id');
     var vehicleConfigs = [];
+    var vehicleModalLiveMode = false;
+    var VEHICLE_COLOR_PALETTE = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#84cc16'];
+
+    function defaultVehicleColor(index) {
+        return VEHICLE_COLOR_PALETTE[index % VEHICLE_COLOR_PALETTE.length];
+    }
 
     function defaultVehicleConfig(index) {
         return {
             type: 'tractor',
+            vehicle_id: null,
             label: 'Трактор ' + (index + 1),
             initial_status: 'idle',
             count: 1,
-            speed_kmh: 10,
+            travel_speed_kmh: 30,
+            cleaning_speed_kmh: 10,
+            marker_color: defaultVehicleColor(index),
+            hidden_on_map: false,
             capacity_m3: 10,
             fuel_capacity_l: 100,
             fuel_consumption_l_per_km: 0.4,
@@ -30,10 +40,14 @@ var App = (function () {
         vehicleConfigs = vehicleConfigs.map(function (cfg, index) {
             return {
                 type: 'tractor',
-                label: 'Трактор ' + (index + 1),
+                vehicle_id: cfg.vehicle_id || null,
+                label: cfg.label || ('Трактор ' + (index + 1)),
                 initial_status: cfg.initial_status || 'idle',
                 count: 1,
-                speed_kmh: cfg.speed_kmh != null ? cfg.speed_kmh : 10,
+                travel_speed_kmh: cfg.travel_speed_kmh != null ? cfg.travel_speed_kmh : (cfg.speed_kmh != null ? cfg.speed_kmh : 30),
+                cleaning_speed_kmh: cfg.cleaning_speed_kmh != null ? cfg.cleaning_speed_kmh : (cfg.speed_kmh != null ? cfg.speed_kmh : 10),
+                marker_color: cfg.marker_color || defaultVehicleColor(index),
+                hidden_on_map: !!cfg.hidden_on_map,
                 capacity_m3: cfg.capacity_m3 != null ? cfg.capacity_m3 : 10,
                 fuel_capacity_l: cfg.fuel_capacity_l != null ? cfg.fuel_capacity_l : 100,
                 fuel_consumption_l_per_km: cfg.fuel_consumption_l_per_km != null ? cfg.fuel_consumption_l_per_km : 0.4,
@@ -41,6 +55,30 @@ var App = (function () {
                 repair_time_min: cfg.repair_time_min != null ? cfg.repair_time_min : 60,
             };
         });
+    }
+
+    function isLiveVehicleMode() {
+        return !!SimModule.simId() && currentSimulationStatus && currentSimulationStatus !== 'finished';
+    }
+
+    function vehicleStatusOptions(selected) {
+        var options = [
+            ['idle', 'Ожидание'],
+            ['en_route', 'В пути'],
+            ['off_route', 'Вне маршрута'],
+            ['cleaning', 'Уборка'],
+            ['dumping', 'Разгрузка'],
+            ['refueling', 'Заправка'],
+            ['broken', 'Сломана'],
+            ['maintenance', 'Ремонт'],
+        ];
+        return options.map(function (pair) {
+            return '<option value="' + pair[0] + '"' + (selected === pair[0] ? ' selected' : '') + '>' + pair[1] + '</option>';
+        }).join('');
+    }
+
+    function vehicleVisibilityLabel(hidden) {
+        return hidden ? 'Показать' : 'Скрыть';
     }
 
     function toast(message, type) {
@@ -321,10 +359,13 @@ var App = (function () {
         var tbody = document.getElementById('vehicle-config-tbody');
         if (!tbody) return;
         tbody.innerHTML = vehicleConfigs.map(function (cfg, index) {
-            return '<tr data-index="' + index + '">'
+            return '<tr data-index="' + index + '"' + (cfg.vehicle_id ? ' data-vehicle-id="' + cfg.vehicle_id + '"' : '') + '>'
                 + '<td>' + cfg.label + '</td>'
-                + '<td><select data-field="initial_status"><option value="idle"' + (cfg.initial_status === 'idle' ? ' selected' : '') + '>Ожидание</option><option value="en_route"' + (cfg.initial_status === 'en_route' ? ' selected' : '') + '>В пути</option><option value="off_route"' + (cfg.initial_status === 'off_route' ? ' selected' : '') + '>Вне маршрута</option><option value="cleaning"' + (cfg.initial_status === 'cleaning' ? ' selected' : '') + '>Уборка</option><option value="dumping"' + (cfg.initial_status === 'dumping' ? ' selected' : '') + '>Разгрузка</option><option value="refueling"' + (cfg.initial_status === 'refueling' ? ' selected' : '') + '>Заправка</option><option value="broken"' + (cfg.initial_status === 'broken' ? ' selected' : '') + '>Сломана</option><option value="maintenance"' + (cfg.initial_status === 'maintenance' ? ' selected' : '') + '>Ремонт</option></select></td>'
-                + '<td><input data-field="speed_kmh" type="number" step="1" min="1" value="' + cfg.speed_kmh + '" /></td>'
+                + '<td><select data-field="initial_status">' + vehicleStatusOptions(cfg.initial_status) + '</select></td>'
+                + '<td><input data-field="travel_speed_kmh" type="number" step="1" min="1" value="' + cfg.travel_speed_kmh + '" /></td>'
+                + '<td><input data-field="cleaning_speed_kmh" type="number" step="1" min="1" value="' + cfg.cleaning_speed_kmh + '" /></td>'
+                + '<td><input data-field="marker_color" type="color" value="' + cfg.marker_color + '" /></td>'
+                + '<td><button class="btn-blue" type="button" data-action="toggle-visibility">' + vehicleVisibilityLabel(cfg.hidden_on_map) + '</button><input data-field="hidden_on_map" type="hidden" value="' + (cfg.hidden_on_map ? '1' : '0') + '" /></td>'
                 + '<td><input data-field="capacity_m3" type="number" step="0.5" min="0.1" value="' + cfg.capacity_m3 + '" /></td>'
                 + '<td><input data-field="fuel_capacity_l" type="number" step="1" min="1" value="' + cfg.fuel_capacity_l + '" /></td>'
                 + '<td><input data-field="fuel_consumption_l_per_km" type="number" step="0.05" min="0.01" value="' + cfg.fuel_consumption_l_per_km + '" /></td>'
@@ -342,14 +383,20 @@ var App = (function () {
                 var input = row.querySelector('[data-field="' + field + '"]');
                 if (!input) return fallback;
                 if (input.tagName === 'SELECT') return input.value || fallback;
+                if (input.type === 'color') return input.value || fallback;
+                if (input.type === 'hidden') return input.value === '1';
                 return parseFloat(input.value) || fallback;
             }
             return {
                 type: 'tractor',
-                label: 'Трактор ' + (index + 1),
+                vehicle_id: row.getAttribute('data-vehicle-id') || null,
+                label: row.getAttribute('data-vehicle-id') || ('Трактор ' + (index + 1)),
                 initial_status: read('initial_status', 'idle'),
                 count: 1,
-                speed_kmh: read('speed_kmh', 10),
+                travel_speed_kmh: read('travel_speed_kmh', 30),
+                cleaning_speed_kmh: read('cleaning_speed_kmh', 10),
+                marker_color: read('marker_color', '#3b82f6'),
+                hidden_on_map: read('hidden_on_map', false),
                 capacity_m3: read('capacity_m3', 10),
                 fuel_capacity_l: read('fuel_capacity_l', 100),
                 fuel_consumption_l_per_km: read('fuel_consumption_l_per_km', 0.4),
@@ -365,74 +412,61 @@ var App = (function () {
         var summary = document.getElementById('vehicle-config-summary');
         if (!summary) return;
         normalizeVehicleConfigs();
-        var avgSpeed = vehicleConfigs.length
-            ? vehicleConfigs.reduce(function (sum, cfg) { return sum + cfg.speed_kmh; }, 0) / vehicleConfigs.length
+        var avgTravelSpeed = vehicleConfigs.length
+            ? vehicleConfigs.reduce(function (sum, cfg) { return sum + cfg.travel_speed_kmh; }, 0) / vehicleConfigs.length
+            : 0;
+        var avgCleaningSpeed = vehicleConfigs.length
+            ? vehicleConfigs.reduce(function (sum, cfg) { return sum + cfg.cleaning_speed_kmh; }, 0) / vehicleConfigs.length
             : 0;
         var avgCapacity = vehicleConfigs.length
             ? vehicleConfigs.reduce(function (sum, cfg) { return sum + cfg.capacity_m3; }, 0) / vehicleConfigs.length
             : 0;
-        summary.textContent = vehicleConfigs.length + ' машин, средняя скорость ' + avgSpeed.toFixed(1) + ' км/ч, средняя вместимость ' + avgCapacity.toFixed(1) + ' м³';
+        summary.textContent = vehicleConfigs.length + ' машин, движение ' + avgTravelSpeed.toFixed(1) + ' км/ч, уборка ' + avgCleaningSpeed.toFixed(1) + ' км/ч, вместимость ' + avgCapacity.toFixed(1) + ' м³';
     }
 
     function openVehicleConfigModal() {
-        renderVehicleConfigRows();
-        loadLiveVehicles();
         var modal = document.getElementById('vehicle-config-modal');
-        if (modal) modal.style.display = 'block';
-    }
-
-    function loadLiveVehicles() {
-        var token = AuthModule.getToken();
-        var section = document.getElementById('live-vehicles-section');
-        var tbody = document.getElementById('live-vehicles-tbody');
-        if (!section || !tbody) return;
-
-        if (!SimModule.simId() || !token) {
-            section.style.display = 'none';
+        if (!modal) return;
+        vehicleModalLiveMode = isLiveVehicleMode();
+        if (!vehicleModalLiveMode) {
+            renderVehicleConfigRows();
+            updateVehicleConfigSummary();
+            syncVehicleConfigModalControls();
+            modal.style.display = 'block';
             return;
         }
-
+        var token = AuthModule.getToken();
         SimModule.getVehicles(token).then(function (vehicles) {
-            if (!vehicles || !vehicles.length) {
-                section.style.display = 'none';
-                return;
-            }
-            section.style.display = '';
-            var statusLabels = {
-                idle: '⏸ Ожидание',
-                en_route: '🚛 В пути',
-                off_route: '🚛 Вне маршр.',
-                cleaning: '🧹 Уборка',
-                dumping: '🏔 Разгрузка',
-                refueling: '⛽ Заправка',
-                broken: '💥 Сломана',
-                maintenance: '🔧 Ремонт',
-            };
-            var statusColors = {
-                idle: '#94a3b8',
-                en_route: '#f59e0b',
-                off_route: '#f59e0b',
-                cleaning: '#a6e3a1',
-                dumping: '#06b6d4',
-                refueling: '#facc15',
-                broken: '#f38ba8',
-                maintenance: '#7c3aed',
-            };
-            tbody.innerHTML = vehicles.map(function (v) {
-                var fuelPct = v.fuel_capacity_l > 0 ? (v.fuel_level / v.fuel_capacity_l * 100).toFixed(0) : '—';
-                var snowPct = v.snow_capacity_m3 > 0 ? (v.snow_loaded_m3 / v.snow_capacity_m3 * 100).toFixed(0) : '—';
-                var color = statusColors[v.status] || '#94a3b8';
-                return '<tr>'
-                    + '<td style="font-size:0.78rem">' + v.id.split('-').slice(-2).join('-') + '</td>'
-                    + '<td style="color:' + color + ';font-weight:600">' + (statusLabels[v.status] || v.status) + '</td>'
-                    + '<td>' + fuelPct + '%</td>'
-                    + '<td>' + snowPct + '%</td>'
-                    + '<td style="font-size:0.78rem">' + (v.current_road || '—') + '</td>'
-                    + '<td style="font-size:0.78rem">' + (v.target_type || '—') + '</td>'
-                    + '</tr>';
-            }).join('');
+            vehicleConfigs = (vehicles || []).map(function (v, index) {
+                var prefs = MapModule.getVehicleDisplayPrefs(v.id);
+                return {
+                    type: 'tractor',
+                    vehicle_id: v.id,
+                    label: v.id || ('Трактор ' + (index + 1)),
+                    initial_status: v.status || 'idle',
+                    count: 1,
+                    travel_speed_kmh: v.travel_speed_kmh != null ? v.travel_speed_kmh : 30,
+                    cleaning_speed_kmh: v.cleaning_speed_kmh != null ? v.cleaning_speed_kmh : 10,
+                    marker_color: prefs.color,
+                    hidden_on_map: prefs.hidden,
+                    capacity_m3: v.snow_capacity_m3 != null ? v.snow_capacity_m3 : 10,
+                    fuel_capacity_l: v.fuel_capacity_l != null ? v.fuel_capacity_l : 100,
+                    fuel_consumption_l_per_km: v.fuel_consumption_l_per_km != null ? v.fuel_consumption_l_per_km : 0.4,
+                    breakdown_probability: v.breakdown_probability != null ? v.breakdown_probability : 0.02,
+                    repair_time_min: v.repair_time_min != null ? v.repair_time_min : 60,
+                };
+            });
+            normalizeVehicleConfigs();
+            renderVehicleConfigRows();
+            updateVehicleConfigSummary();
+            syncVehicleConfigModalControls();
+            modal.style.display = 'block';
         }).catch(function () {
-            section.style.display = 'none';
+            vehicleModalLiveMode = false;
+            renderVehicleConfigRows();
+            updateVehicleConfigSummary();
+            syncVehicleConfigModalControls();
+            modal.style.display = 'block';
         });
     }
 
@@ -443,6 +477,10 @@ var App = (function () {
     }
 
     function addVehicleConfigRow() {
+        if (vehicleModalLiveMode) {
+            toast('Во время активной симуляции нельзя добавлять машины из этой формы', 'info');
+            return;
+        }
         persistVehicleConfigRows();
         vehicleConfigs.push(defaultVehicleConfig(vehicleConfigs.length));
         renderVehicleConfigRows();
@@ -450,11 +488,97 @@ var App = (function () {
     }
 
     function removeVehicleConfigRow(index) {
+        if (vehicleModalLiveMode) {
+            toast('Во время активной симуляции нельзя удалять машины из этой формы', 'info');
+            return;
+        }
         persistVehicleConfigRows();
         vehicleConfigs.splice(index, 1);
         normalizeVehicleConfigs();
         renderVehicleConfigRows();
         updateVehicleConfigSummary();
+    }
+
+    function syncVehicleConfigModalControls() {
+        var addBtn = document.getElementById('btn-add-vehicle-row');
+        if (addBtn) addBtn.disabled = vehicleModalLiveMode;
+    }
+
+    function updateRowVisibilityButton(row) {
+        var hiddenInput = row.querySelector('[data-field="hidden_on_map"]');
+        var btn = row.querySelector('[data-action="toggle-visibility"]');
+        if (!hiddenInput || !btn) return;
+        btn.textContent = vehicleVisibilityLabel(hiddenInput.value === '1');
+    }
+
+    function applyVehicleConfigRow(row) {
+        var vehicleId = row.getAttribute('data-vehicle-id');
+        var colorInput = row.querySelector('[data-field="marker_color"]');
+        var hiddenInput = row.querySelector('[data-field="hidden_on_map"]');
+        if (vehicleId && colorInput && hiddenInput) {
+            MapModule.setVehicleDisplayPrefs(vehicleId, {
+                color: colorInput.value,
+                hidden: hiddenInput.value === '1',
+            });
+        }
+        if (!vehicleModalLiveMode) {
+            persistVehicleConfigRows();
+            return Promise.resolve();
+        }
+        var token = AuthModule.getToken();
+        if (!vehicleId || !token) return Promise.resolve();
+        function read(field, fallback) {
+            var input = row.querySelector('[data-field="' + field + '"]');
+            if (!input) return fallback;
+            if (input.tagName === 'SELECT') return input.value || fallback;
+            return parseFloat(input.value) || fallback;
+        }
+        var body = {
+            status: read('initial_status', 'idle'),
+            travel_speed_kmh: read('travel_speed_kmh', 30),
+            cleaning_speed_kmh: read('cleaning_speed_kmh', 10),
+            snow_capacity_m3: read('capacity_m3', 10),
+            fuel_capacity_l: read('fuel_capacity_l', 100),
+            fuel_consumption_l_per_km: read('fuel_consumption_l_per_km', 0.4),
+            breakdown_probability: read('breakdown_probability', 0.02),
+            repair_time_min: read('repair_time_min', 60),
+        };
+        return AuthModule.apiFetch('/api/vehicle-states/' + encodeURIComponent(vehicleId), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        })
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return SimModule.getVehicles(token);
+            })
+            .then(function (vehicles) {
+                MapModule.updateVehicles(vehicles);
+                vehicleConfigs = (vehicles || []).map(function (v, index) {
+                    var prefs = MapModule.getVehicleDisplayPrefs(v.id);
+                    return {
+                        type: 'tractor',
+                        vehicle_id: v.id,
+                        label: v.id || ('Трактор ' + (index + 1)),
+                        initial_status: v.status || 'idle',
+                        count: 1,
+                        travel_speed_kmh: v.travel_speed_kmh != null ? v.travel_speed_kmh : 30,
+                        cleaning_speed_kmh: v.cleaning_speed_kmh != null ? v.cleaning_speed_kmh : 10,
+                        marker_color: prefs.color,
+                        hidden_on_map: prefs.hidden,
+                        capacity_m3: v.snow_capacity_m3 != null ? v.snow_capacity_m3 : 10,
+                        fuel_capacity_l: v.fuel_capacity_l != null ? v.fuel_capacity_l : 100,
+                        fuel_consumption_l_per_km: v.fuel_consumption_l_per_km != null ? v.fuel_consumption_l_per_km : 0.4,
+                        breakdown_probability: v.breakdown_probability != null ? v.breakdown_probability : 0.02,
+                        repair_time_min: v.repair_time_min != null ? v.repair_time_min : 60,
+                    };
+                });
+                normalizeVehicleConfigs();
+                updateVehicleConfigSummary();
+            })
+            .catch(function () {
+                toast('Не удалось применить параметры машины', 'error');
+            });
     }
 
     function getVehicleConfigs() {
@@ -464,7 +588,8 @@ var App = (function () {
                 type: 'tractor',
                 count: 1,
                 initial_status: cfg.initial_status || 'idle',
-                speed_kmh: cfg.speed_kmh,
+                travel_speed_kmh: cfg.travel_speed_kmh,
+                cleaning_speed_kmh: cfg.cleaning_speed_kmh,
                 capacity_m3: cfg.capacity_m3,
                 fuel_capacity_l: cfg.fuel_capacity_l,
                 fuel_consumption_l_per_km: cfg.fuel_consumption_l_per_km,
@@ -621,7 +746,6 @@ var App = (function () {
             })
             .then(function (vehicles) {
                 MapModule.updateVehicles(vehicles);
-                loadLiveVehicles();
                 return SimModule.getStats(token);
             })
             .then(function (stats) {
@@ -641,7 +765,7 @@ var App = (function () {
             updateProgressBar(state.roads_cleaned_pct);
             ticks++;
             SimModule.getVehicles(token)
-                .then(function (v) { MapModule.updateVehicles(v); loadLiveVehicles(); })
+                .then(function (v) { MapModule.updateVehicles(v); })
                 .catch(function () { });
             if (ticks % 2 === 0) {
                 SimModule.getStats(token)
@@ -762,7 +886,10 @@ var App = (function () {
                     label: 'Трактор ' + (vehicleConfigs.length + 1),
                     initial_status: cfg.initial_status || 'idle',
                     count: 1,
-                    speed_kmh: cfg.speed_kmh,
+                    travel_speed_kmh: cfg.travel_speed_kmh != null ? cfg.travel_speed_kmh : cfg.speed_kmh,
+                    cleaning_speed_kmh: cfg.cleaning_speed_kmh != null ? cfg.cleaning_speed_kmh : (cfg.speed_kmh != null ? cfg.speed_kmh : 10),
+                    marker_color: cfg.marker_color || '#3b82f6',
+                    hidden_on_map: !!cfg.hidden_on_map,
                     capacity_m3: cfg.capacity_m3,
                     fuel_capacity_l: cfg.fuel_capacity_l,
                     fuel_consumption_l_per_km: cfg.fuel_consumption_l_per_km,
@@ -897,6 +1024,22 @@ var App = (function () {
         document.getElementById('btn-configure-vehicles').addEventListener('click', openVehicleConfigModal);
         document.getElementById('btn-close-vehicle-config').addEventListener('click', closeVehicleConfigModal);
         document.getElementById('btn-add-vehicle-row').addEventListener('click', addVehicleConfigRow);
+        document.getElementById('vehicle-config-tbody').addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest('[data-action="toggle-visibility"]') : null;
+            if (!btn) return;
+            var row = btn.closest('tr');
+            if (!row) return;
+            var hiddenInput = row.querySelector('[data-field="hidden_on_map"]');
+            if (!hiddenInput) return;
+            hiddenInput.value = hiddenInput.value === '1' ? '0' : '1';
+            updateRowVisibilityButton(row);
+            applyVehicleConfigRow(row);
+        });
+        document.getElementById('vehicle-config-tbody').addEventListener('change', function (e) {
+            var row = e.target && e.target.closest ? e.target.closest('tr') : null;
+            if (!row) return;
+            applyVehicleConfigRow(row);
+        });
 
         checkAuth();
         updateGraphToggleUi();

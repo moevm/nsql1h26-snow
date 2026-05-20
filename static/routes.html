@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Маршруты — Уборка снега СПб</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div id="app-header"></div>
+    <div id="toast-container"></div>
+    <div class="page-content">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h2>Маршруты уборки</h2>
+            <a href="/static/index.html" class="btn btn-blue" style="padding:6px 14px;background:var(--blue);color:var(--bg);font-weight:600;border-radius:8px;text-decoration:none;font-size:0.85rem">+ Создать на карте</a>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-row">
+                <label>Название: <input id="f-label" type="text" placeholder="Поиск по подстроке..." /></label>
+                <label>Дистанция от (м): <input id="f-dist-min" type="number" placeholder="0" /></label>
+                <label>до (м): <input id="f-dist-max" type="number" placeholder="100000" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Улиц от: <input id="f-streets-min" type="number" placeholder="0" /></label>
+                <label>до: <input id="f-streets-max" type="number" placeholder="999" /></label>
+                <label>Создан от: <input id="f-date-from" type="date" /></label>
+                <label>до: <input id="f-date-to" type="date" /></label>
+            </div>
+            <div class="filter-row">
+                <button id="btn-filter" class="btn-blue">Применить фильтр</button>
+                <button id="btn-reset">Сброс</button>
+                <span id="result-count" style="color:var(--text-dim);font-size:0.85rem;"></span>
+            </div>
+        </div>
+
+        <div id="loading" class="loading-indicator">Загрузка...</div>
+        <div id="error-state" class="empty-state" style="display:none; border-color: var(--red); color: var(--red);"></div>
+
+        <table class="data-table" id="routes-table" style="display:none">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Дистанция</th>
+                    <th>Улиц</th>
+                    <th>Создан</th>
+                    <th>Начало работ</th>
+                    <th>Конец работ</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="routes-tbody"></tbody>
+        </table>
+        <div class="pagination" id="pagination"></div>
+        <div id="empty-state" class="empty-state" style="display:none">
+            Маршруты не найдены. Создайте маршрут на <a href="/static/index.html">странице карты</a>.
+        </div>
+    </div>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/routes-page.js"></script>
+</body>
+</html>

@@ -10,7 +10,6 @@ from app.seed import seed_if_empty
 
 logger = logging.getLogger(__name__)
 
-
 async def bootstrap() -> None:
     settings = get_settings()
     graph = GraphDAO(settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password)
@@ -23,11 +22,9 @@ async def bootstrap() -> None:
     finally:
         await graph.close()
 
-
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     asyncio.run(bootstrap())
-
 
 if __name__ == "__main__":
     main()

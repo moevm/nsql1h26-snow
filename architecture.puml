@@ -1,0 +1,33 @@
+@startuml architecture
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма контейнеров — Симуляция уборки снега (СПб)
+
+Person(operator, "Оператор", "Управляет симуляцией уборки\nснега через браузер")
+
+System_Boundary(system, "Snow Cleaning Simulation") {
+    Container(spa, "Web Frontend", "HTML / CSS / JavaScript\nLeaflet.js, Chart.js", "Интерактивная карта,\nуправление симуляцией,\nграфики статистики")
+
+    Container(api, "API Server", "Python 3.12, FastAPI\nUvicorn", "REST API: аутентификация,\nмаршруты, объекты,\nсимуляция, статистика")
+
+    ContainerDb(neo4j, "Neo4j 5", "Графовая БД\n(bolt://)", "Дорожная сеть СПб:\n~571K узлов Intersection,\n~1.1M связей ROAD,\nобъекты MapObject")
+
+    ContainerDb(redis, "Redis 7", "Key-Value Store", "Кэширование состояния\nсимуляции (TTL 600s)")
+
+    Container(jaeger, "Jaeger", "Tracing Backend\n(OTLP gRPC)", "Сбор и визуализация\nтрассировок запросов")
+}
+
+System_Ext(osm_tiles, "OpenStreetMap Tiles", "Тайловый сервер\nдля отображения карты")
+System_Ext(nominatim, "Nominatim API", "Геокодирование адресов\n(OpenStreetMap)")
+
+Rel(operator, spa, "Использует", "HTTPS (браузер)")
+Rel(spa, api, "REST API вызовы", "HTTP/JSON, порт 8000")
+Rel(spa, osm_tiles, "Загрузка тайлов карты", "HTTPS")
+Rel(spa, nominatim, "Поиск адреса", "HTTPS")
+Rel(api, neo4j, "Cypher-запросы", "bolt://, порт 7687")
+Rel(api, redis, "Кэш состояния", "redis://, порт 6379")
+Rel(api, jaeger, "Трассировки (OTLP)", "gRPC, порт 4317")
+
+@enduml

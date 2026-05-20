@@ -1,0 +1,84 @@
+@startuml architecture_components
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Компонентная диаграмма — API Server (FastAPI)
+
+Container_Boundary(api_server, "API Server (FastAPI, Python 3.12)") {
+
+    Component(auth, "auth.py", "APIRouter", "JWT-аутентификация (HS256).\nХардкод пользователей:\nadmin/admin, operator/operator.\nВыдача и валидация токенов.")
+
+    Component(routes_api, "routes.py", "APIRouter", "Маршрутизация по графу:\nshortest — кратчайший путь,\nnearest — ближайший узел,\npreview — предпросмотр маршрута уборки.")
+
+    Component(objects_api, "objects.py", "APIRouter", "Статические объекты инфраструктуры:\nстоянки, полигоны, станции ТО.\nАвто-сидирование при первом запросе.\nCRUD эндпоинты.")
+
+    Component(sim_api, "simulation.py", "APIRouter", "Управление симуляцией:\nstart, tick, pause,\nresume, stop.\nIn-memory реестр симуляций.")
+
+    Component(stats_api, "statistics.py", "APIRouter", "Статистика симуляции:\nагрегированные метрики,\nстатистика по дорогам.")
+
+    Component(rate_limiter, "rate_limit.py", "slowapi.Limiter", "Rate limiting по IP-адресу.\nЛимиты: 5–120 req/min\nв зависимости от эндпоинта.")
+
+    Component(sim_engine, "SimulationEngine", "Service", "Ядро симуляции:\nразрешение маршрутов → сегменты,\nспавн техники у стоянок,\nтиковая механика (5 мин/тик),\nочистка дорог, расход топлива,\nслучайные поломки.")
+
+    Component(graph_dao, "GraphDAO", "DAO (neo4j async)", "Async обёртка Neo4j:\nupsert узлов/дорог,\nshortestPath, find_nearest_node,\nmark_road_cleaned,\nCRUD MapObject.")
+
+    Component(cache_mgr, "CacheManager", "DAO (redis.asyncio)", "Кэш состояния симуляции:\nget/set с TTL,\nflush по sim_id.")
+
+    Component(telemetry, "telemetry.py", "OpenTelemetry", "Инструментирование FastAPI:\nTracerProvider → Jaeger\n(OTLP gRPC, BatchSpanProcessor).")
+
+    Component(logger_mod, "logger.py", "logging", "Настройка Python logging:\nформат с timestamp,\nподавление шумных библиотек.")
+}
+
+Container_Boundary(frontend, "Web Frontend (static/)") {
+    Component(app_js, "app.js", "JavaScript (IIFE)", "Основная логика: логин,\nдобавление маршрутов,\nзапуск симуляции,\nпоиск адреса (Nominatim).")
+
+    Component(map_js, "map.js", "Leaflet.js (IIFE)", "Инициализация карты,\nмаркеры объектов и техники,\nотрисовка маршрутов,\nгеокодирование.")
+
+    Component(sim_js, "simulation.js", "JavaScript (IIFE)", "API-вызовы симуляции:\nstart, tick, pause,\nresume, stop, auto-run.")
+
+    Component(stats_js, "statistics.js", "Chart.js (IIFE)", "Графики: линейный (прогресс %),\nстолбчатый (расход топлива).\nСкользящее окно 60 тиков.")
+}
+
+ContainerDb(neo4j, "Neo4j 5", "Графовая БД", "Intersection, ROAD,\nMapObject")
+ContainerDb(redis, "Redis 7", "Key-Value", "Кэш симуляций")
+Container(jaeger, "Jaeger", "Tracing", "Трассировки запросов")
+System_Ext(nominatim, "Nominatim API", "Геокодирование")
+System_Ext(osm_tiles, "OSM Tiles", "Тайлы карты")
+
+' ── Связи внутри API ──
+Rel(routes_api, auth, "Depends(get_current_user)")
+Rel(objects_api, auth, "Depends(get_current_user)")
+Rel(sim_api, auth, "Depends(get_current_user)")
+Rel(stats_api, auth, "Depends(get_current_user)")
+
+Rel(sim_api, sim_engine, "Создаёт и управляет")
+Rel(stats_api, sim_engine, "Читает get_stats()")
+
+Rel(routes_api, graph_dao, "find_nearest_node,\nfind_shortest_path")
+Rel(objects_api, graph_dao, "CRUD MapObject,\nseed_if_needed")
+Rel(sim_engine, graph_dao, "find_path_roads,\nmark_road_cleaned,\nreset_snow_on_roads")
+Rel(sim_engine, cache_mgr, "Кэш состояния")
+
+Rel(routes_api, rate_limiter, "Лимит 30/мин")
+Rel(objects_api, rate_limiter, "Лимит 30–60/мин")
+Rel(sim_api, rate_limiter, "Лимит 5–120/мин")
+Rel(stats_api, rate_limiter, "Лимит 60/мин")
+
+Rel(telemetry, jaeger, "OTLP gRPC")
+
+' ── Связи DAO → БД ──
+Rel(graph_dao, neo4j, "Cypher (bolt://)")
+Rel(cache_mgr, redis, "redis://")
+
+' ── Связи фронтенда ──
+Rel(app_js, sim_api, "HTTP/JSON")
+Rel(app_js, routes_api, "HTTP/JSON")
+Rel(app_js, objects_api, "HTTP/JSON")
+Rel(app_js, auth, "POST /token")
+Rel(app_js, nominatim, "Поиск адреса (HTTPS)")
+Rel(map_js, osm_tiles, "Тайлы (HTTPS)")
+Rel(sim_js, sim_api, "tick/pause/resume/stop")
+Rel(sim_js, stats_api, "GET статистика")
+
+@enduml

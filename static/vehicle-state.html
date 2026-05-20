@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Состояние машины — Уборка снега СПб</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div id="app-header"></div>
+    <div id="toast-container"></div>
+    <div class="page-content">
+        <a id="back-link" href="/static/vehicle-states.html" class="back-link">&larr; Назад</a>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 id="vs-title">Загрузка...</h2>
+            <button id="btn-edit" class="btn-blue">Редактировать</button>
+        </div>
+        <div id="vs-map" class="detail-map"></div>
+        <div class="detail-grid">
+            <div class="detail-card" id="view-card">
+                <h3>Атрибуты</h3>
+                <div id="vs-attrs"></div>
+            </div>
+            <div class="detail-card" id="edit-card" style="display:none">
+                <h3>Редактирование</h3>
+                <div class="form-row"><label>Статус: <input id="e-status" type="text" /></label></div>
+                <div class="form-row"><label>Топливо: <input id="e-fuel" type="number" step="0.1" /></label></div>
+                <div class="form-row"><label>Снег (м³): <input id="e-snow" type="number" step="0.01" /></label></div>
+                <div class="form-row"><label>Текущая дорога: <input id="e-road" type="text" /></label></div>
+                <div class="btn-group">
+                    <button id="btn-save" class="btn-green">Сохранить</button>
+                    <button id="btn-cancel">Отмена</button>
+                </div>
+            </div>
+        </div>
+        <div class="detail-card" style="margin-top:16px">
+            <h3>История шагов</h3>
+            <table class="data-table" id="vs-history-table">
+                <thead><tr><th>Тик</th><th>Статус</th><th>Топливо</th><th>Снег</th><th>Дистанция</th><th>Шаг</th></tr></thead>
+                <tbody id="vs-history-tbody"></tbody>
+            </table>
+            <div id="vs-history-empty" class="empty-state" style="display:none">История отсутствует</div>
+        </div>
+    </div>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/vehicle-state-detail.js"></script>
+</body>
+</html>
