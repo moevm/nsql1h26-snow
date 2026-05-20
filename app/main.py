@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -27,6 +28,11 @@ async def lifespan(application: FastAPI):
     )
     await application.state.graph_dao.connect()
     await application.state.graph_dao.ensure_indexes()
+
+    from app.osm_download import download_osm_if_needed
+    await asyncio.to_thread(
+        download_osm_if_needed, settings.geojson_path, settings.pbf_url, settings.osm_bbox
+    )
 
     from app.osm_import import import_osm_if_needed
     await import_osm_if_needed(application.state.graph_dao, settings.geojson_path)
