@@ -1,0 +1,92 @@
+[
+  {
+    "id": "obj-parking-1",
+    "name": "Парковка Попова",
+    "type": "parking",
+    "lat": 59.9712,
+    "lng": 30.3141,
+    "capacity": 50,
+    "description": "Стоянка техники у улицы Профессора Попова"
+  },
+  {
+    "id": "obj-parking-2",
+    "name": "Парковка Карповка",
+    "type": "parking",
+    "lat": 59.9706,
+    "lng": 30.3078,
+    "capacity": 30,
+    "description": "Стоянка техники у набережной реки Карповки"
+  },
+  {
+    "id": "obj-parking-3",
+    "name": "Парковка Медиков",
+    "type": "parking",
+    "lat": 59.977,
+    "lng": 30.3188,
+    "capacity": 40,
+    "description": "Стоянка техники у проспекта Медиков"
+  },
+  {
+    "id": "obj-parking-4",
+    "name": "Парковка Аптекарский центр",
+    "type": "parking",
+    "lat": 59.973,
+    "lng": 30.318,
+    "capacity": 25,
+    "description": "Резервная стоянка техники в центральной части острова"
+  },
+  {
+    "id": "obj-service-1",
+    "name": "СТО ЛЭТИ",
+    "type": "service_station",
+    "lat": 59.971,
+    "lng": 30.3145,
+    "capacity": null,
+    "description": "Точка техобслуживания у кампуса ЛЭТИ"
+  },
+  {
+    "id": "obj-service-2",
+    "name": "СТО Медиков",
+    "type": "service_station",
+    "lat": 59.9772,
+    "lng": 30.3208,
+    "capacity": null,
+    "description": "Сервисная станция в северной части острова"
+  },
+  {
+    "id": "obj-service-3",
+    "name": "СТО Каменноостровский",
+    "type": "service_station",
+    "lat": 59.9738,
+    "lng": 30.3075,
+    "capacity": null,
+    "description": "Сервисная станция у Каменноостровского проспекта"
+  },
+  {
+    "id": "obj-snow-1",
+    "name": "Снегоплавильный пункт Карповка",
+    "type": "snow_polygon",
+    "lat": 59.9708,
+    "lng": 30.3086,
+    "capacity": 1000,
+    "description": "Юго-западная точка вывоза снега"
+  },
+  {
+    "id": "obj-snow-2",
+    "name": "Снегоплавильный пункт Аптекарская набережная",
+    "type": "snow_polygon",
+    "lat": 59.9769,
+    "lng": 30.3229,
+    "capacity": 800,
+    "description": "Северо-восточная точка вывоза снега, смещена с набережной вглубь квартала"
+  },
+  {
+    "id": "obj-snow-3",
+    "name": "Снегоплавильный пункт Песочная набережная",
+    "type": "snow_polygon",
+    "lat": 59.9749,
+    "lng": 30.3268,
+    "capacity": 1200,
+    "description": "Восточная точка вывоза снега, смещена с берега на сушу"
+  }
+]
