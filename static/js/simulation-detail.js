@@ -95,8 +95,6 @@
                     field('Порог заправки', (p.refuel_threshold_pct || 15) + '%'),
                     field('Порог разгрузки', (p.dump_threshold_pct || 90) + '%'),
                     field('Снегоплавильня', (p.snow_melt_rate_m3_per_tick || 10) + ' м³/тик'),
-                    field('Реальная погода', p.use_real_weather ? 'Да' : 'Нет'),
-                    field('Пробки', p.use_traffic ? 'Да' : 'Нет'),
                     field('Дорог всего', d.roads_total || '—'),
                 ].join('');
 
