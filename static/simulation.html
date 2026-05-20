@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Симуляция — Уборка снега СПб</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div id="app-header"></div>
+    <div id="toast-container"></div>
+
+    <div class="page-content">
+        <a href="/static/simulations.html" class="back-link">&larr; Назад к симуляциям</a>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 id="sim-title">Загрузка...</h2>
+            <div class="btn-group">
+                <a id="btn-open-on-map" href="/static/index.html" class="btn-blue" style="padding:8px 12px;border-radius:8px;color:var(--bg);text-decoration:none;font-weight:600">На карту</a>
+                <button id="btn-edit-name" class="btn-blue">Переименовать</button>
+                <button id="btn-delete" class="btn-red">Удалить</button>
+            </div>
+        </div>
+        <div id="rename-card" class="detail-card" style="display:none;margin-top:12px;max-width:420px">
+            <h3>Изменить название</h3>
+            <div class="form-row"><label>Название: <input id="e-sim-name" type="text" /></label></div>
+            <div class="btn-group">
+                <button id="btn-save-name" class="btn-green">Сохранить</button>
+                <button id="btn-cancel-rename">Отмена</button>
+            </div>
+        </div>
+
+        <div id="sim-map" class="detail-map"></div>
+
+        <div class="detail-grid">
+            <div class="detail-card">
+                <h3>Состояние</h3>
+                <div id="sim-state-attrs"></div>
+            </div>
+            <div class="detail-card">
+                <h3>Параметры</h3>
+                <div id="sim-params-attrs"></div>
+            </div>
+        </div>
+
+        <div class="detail-grid">
+            <div class="detail-card">
+                <h3>Задействованные улицы</h3>
+                <ul id="sim-streets" class="streets-list"></ul>
+            </div>
+            <div class="detail-card">
+                <h3>Статистика</h3>
+                <div id="sim-stats-attrs"></div>
+            </div>
+        </div>
+
+        <div class="detail-grid">
+            <div class="detail-card" style="grid-column:1/-1">
+                <h3>Маршруты симуляции</h3>
+                <table class="data-table" id="sim-routes-table">
+                    <thead><tr><th>ID</th><th>Название</th><th>Дистанция</th><th>Создан</th></tr></thead>
+                    <tbody id="sim-routes-tbody"></tbody>
+                </table>
+                <div id="sim-routes-empty" class="empty-state" style="display:none">Маршруты не найдены</div>
+            </div>
+
+            <div class="detail-card" style="grid-column:1/-1">
+                <h3>Машины</h3>
+                <table class="data-table" id="sim-vehicles-table">
+                    <thead><tr><th>ID</th><th>Тип</th><th>Статус</th><th>Топливо</th><th>Снег</th><th>Последний тик</th></tr></thead>
+                    <tbody id="sim-vehicles-tbody"></tbody>
+                </table>
+                <div id="sim-vehicles-empty" class="empty-state" style="display:none">Машины не найдены</div>
+            </div>
+
+            <div class="detail-card" style="grid-column:1/-1">
+                <h3>Шаги симуляции</h3>
+                <table class="data-table" id="sim-steps-table">
+                    <thead><tr><th>Тик</th><th>% дорог</th><th>Снег (м³)</th><th>Топливо</th><th>Поломки</th><th>Время</th></tr></thead>
+                    <tbody id="sim-steps-tbody"></tbody>
+                </table>
+                <div class="pagination" id="steps-pagination"></div>
+                <div id="sim-steps-empty" class="empty-state" style="display:none">Шагов нет</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/simulation-detail.js"></script>
+</body>
+</html>

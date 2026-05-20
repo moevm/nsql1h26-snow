@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>❄️ Симуляция уборки снега — Санкт-Петербург</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+
+<body>
+
+    <div id="app-header"></div>
+
+    <div id="toast-container"></div>
+
+    <div class="layout">
+
+        <aside class="sidebar">
+
+            <section class="panel">
+                <h2>🛣️ Маршруты уборки</h2>
+
+                <div class="form-row hint">Выберите точки кликом по карте или введите адрес</div>
+
+                <div class="form-row">
+                    <input id="route-label" type="text" placeholder="Название маршрута" />
+                </div>
+
+                <div class="form-row" style="display:flex; gap:4px;">
+                    <input id="address-input" type="text" placeholder="Адрес (ул. Пушкина, 10)" style="flex:1;" />
+                    <button id="btn-search-addr" class="btn-blue" style="white-space:nowrap;">🔍 Найти</button>
+                </div>
+                <div id="address-results" class="address-results" style="display:none;"></div>
+
+                <div class="form-row">
+                    📍 Точка: <span id="route-coords" class="coords-display">—</span>
+                </div>
+                <div class="form-row">
+                    🟢 Начало: <span id="route-start-display" class="coords-display">—</span>
+                </div>
+                <div class="btn-group">
+                    <button id="btn-route-start" class="btn-green">🟢 Начало</button>
+                    <button id="btn-route-waypoint" class="btn-blue">📍 +Точка</button>
+                    <button id="btn-route-end" class="btn-red">🔴 Конец</button>
+                </div>
+                <div id="waypoints-panel" style="margin-top:4px">
+                    <div id="waypoints-list" class="list"></div>
+                </div>
+                <div class="form-row">
+                    <span id="route-status" style="font-size:0.9em;"></span>
+                </div>
+                <div class="form-row">
+                    <strong id="route-total"></strong>
+                </div>
+                <button id="btn-clear-tasks" class="btn-red" style="margin-top:4px;">Очистить все</button>
+                <div id="tasks-list" class="list"></div>
+            </section>
+
+            <section class="panel">
+                <h2>🚜 Симуляция</h2>
+                <div class="form-row">
+                    <input id="sim-name" type="text" placeholder="Название симуляции (необязательно)" />
+                </div>
+                <div class="form-row hint">Парк машин</div>
+                <div class="btn-group">
+                    <button id="btn-configure-vehicles" class="btn-blue" type="button">⚙ Машины</button>
+                </div>
+                <div class="form-row">
+                    <span id="vehicle-config-summary" style="font-size:0.85em;color:var(--text-dim)">1 машина, параметры по умолчанию</span>
+                </div>
+                <div class="form-row">
+                    <label>Снег (см): <input id="sim-snow" type="number" value="5" step="0.5" min="0" /></label>
+                </div>
+                <div class="form-row">
+                    <label>Ускорение: <input id="sim-speed" type="number" value="1" step="0.5" min="0.1" /></label>
+                </div>
+                <div class="form-row">
+                    <label>Тик (мин): <input id="sim-tick-minutes" type="number" value="5" step="1" min="1" /></label>
+                </div>
+                <div class="form-row">
+                    <label>Заправка ≤ %: <input id="sim-refuel-threshold" type="number" value="15" step="1" min="0" max="100" /></label>
+                </div>
+                <div class="form-row">
+                    <label>Разгрузка ≥ %: <input id="sim-dump-threshold" type="number" value="90" step="1" min="0" max="100" /></label>
+                </div>
+                <div class="form-row">
+                    <label>Снегоплавильня м³/тик: <input id="sim-snow-melt-rate" type="number" value="10" step="0.5" min="0.1" /></label>
+                </div>
+                <div class="btn-group">
+                    <button id="btn-sim-start" class="btn-green">▶ Старт</button>
+                    <button id="btn-sim-pause">⏸ Пауза</button>
+                    <button id="btn-sim-tick">▶ Тик</button>
+                    <button id="btn-sim-stop" class="btn-red">⏹ Стоп</button>
+                </div>
+                <div class="form-row">
+                    <button id="btn-auto-run" class="btn-blue">⏩ Авто-запуск</button>
+                </div>
+            </section>
+
+            <section class="panel" id="sim-state-panel" style="display:none">
+                <h2>📊 Состояние</h2>
+                <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill">0%</div></div>
+                <table class="stats-table">
+                    <tr>
+                        <td>Статус</td>
+                        <td id="st-status">—</td>
+                    </tr>
+                    <tr>
+                        <td>Тик</td>
+                        <td id="st-tick">0</td>
+                    </tr>
+                    <tr>
+                        <td>Время (мин)</td>
+                        <td id="st-time">0</td>
+                    </tr>
+                    <tr>
+                        <td>Техника</td>
+                        <td id="st-vehicles">0</td>
+                    </tr>
+                    <tr>
+                        <td>В пути</td>
+                        <td id="st-en-route">0</td>
+                    </tr>
+                    <tr>
+                        <td>Убирают</td>
+                        <td id="st-cleaning">0</td>
+                    </tr>
+                    <tr>
+                        <td>На разгрузке</td>
+                        <td id="st-dumping">0</td>
+                    </tr>
+                    <tr>
+                        <td>На заправке</td>
+                        <td id="st-refueling">0</td>
+                    </tr>
+                    <tr>
+                        <td>Сломаны</td>
+                        <td id="st-broken">0</td>
+                    </tr>
+                    <tr>
+                        <td>В ремонте</td>
+                        <td id="st-maintenance">0</td>
+                    </tr>
+                    <tr>
+                        <td>Убрано дорог</td>
+                        <td id="st-cleaned">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Дорог всего</td>
+                        <td id="st-roads-total">—</td>
+                    </tr>
+                    <tr>
+                        <td>Снег (м³)</td>
+                        <td id="st-snow">0</td>
+                    </tr>
+                    <tr>
+                        <td>Средн. топливо</td>
+                        <td id="st-avg-fuel">0%</td>
+                    </tr>
+                    <tr>
+                        <td>Средн. снег</td>
+                        <td id="st-avg-snow">0%</td>
+                    </tr>
+                </table>
+            </section>
+
+            <section class="panel">
+                <h2>📍 Объекты на карте</h2>
+                <div class="form-row hint">Стационарные объекты СПб (предзаданы)</div>
+                <div class="btn-group">
+                    <button id="btn-toggle-graph" class="btn-blue">◌ Показать граф</button>
+                </div>
+                <div class="form-row">
+                    <span id="graph-toggle-status" style="font-size:0.85em;color:var(--text-dim)">Слой графа скрыт</span>
+                </div>
+                <div id="objects-list" class="list"></div>
+            </section>
+
+        </aside>
+
+        <div id="vehicle-config-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:1000;padding:24px;overflow:auto">
+            <div style="max-width:1200px;margin:0 auto;background:var(--panel,#111827);border-radius:16px;padding:20px;box-shadow:0 24px 64px rgba(0,0,0,0.35)">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px">
+                    <div>
+                        <h3 style="margin:0">Машины</h3>
+                        <div style="font-size:0.85rem;color:var(--text-dim)">Параметры для каждой машины</div>
+                    </div>
+                    <div class="btn-group">
+                        <button id="btn-add-vehicle-row" class="btn-blue" type="button">+ Машина</button>
+                        <button id="btn-close-vehicle-config" class="btn-red" type="button">Закрыть</button>
+                    </div>
+                </div>
+                <div style="overflow:auto">
+                    <table class="data-table" id="vehicle-config-table" style="font-size:0.85rem">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Состояние</th>
+                                <th>Скорость движения</th>
+                                <th>Скорость уборки</th>
+                                <th>Цвет</th>
+                                <th>Карта</th>
+                                <th>Вместимость</th>
+                                <th>Бак</th>
+                                <th>Расход</th>
+                                <th>Поломка</th>
+                                <th>Ремонт</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="vehicle-config-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <main class="map-container">
+            <div id="map"></div>
+        </main>
+
+        <aside class="sidebar sidebar-right" id="charts-panel" style="display:none">
+            <section class="panel">
+                <h2>📈 Статистика</h2>
+                <div id="stats-filter-container"></div>
+                <canvas id="chart-progress" height="200"></canvas>
+                <canvas id="chart-fuel" height="200"></canvas>
+            </section>
+        </aside>
+
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/map.js"></script>
+    <script src="/static/js/simulation.js"></script>
+    <script src="/static/js/statistics.js"></script>
+    <script src="/static/js/app.js"></script>
+
+</body>
+
+</html>

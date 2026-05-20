@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Точки — Уборка снега СПб</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div id="app-header"></div>
+    <div id="toast-container"></div>
+
+    <div class="page-content">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h2>Точки инфраструктуры</h2>
+            <button id="btn-create" class="btn-green">+ Добавить</button>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-row">
+                <label>Название: <input id="f-name" type="text" placeholder="Поиск по подстроке..." /></label>
+                <label>Тип:
+                    <select id="f-type">
+                        <option value="">Все типы</option>
+                        <option value="parking">Парковка</option>
+                        <option value="snow_polygon">Снегоплавильня</option>
+                        <option value="service_station">Сервисная станция</option>
+                    </select>
+                </label>
+                <label>Описание: <input id="f-desc" type="text" placeholder="Поиск по подстроке..." /></label>
+            </div>
+            <div class="filter-row">
+                <label>Широта от: <input id="f-lat-min" type="number" step="0.001" placeholder="59.5" /></label>
+                <label>до: <input id="f-lat-max" type="number" step="0.001" placeholder="60.2" /></label>
+                <label>Долгота от: <input id="f-lng-min" type="number" step="0.001" placeholder="29.5" /></label>
+                <label>до: <input id="f-lng-max" type="number" step="0.001" placeholder="31.0" /></label>
+            </div>
+            <div class="filter-row">
+                <label><input id="f-infra" type="checkbox" checked /> Только инфраструктурные</label>
+                <button id="btn-filter" class="btn-blue">Применить фильтр</button>
+                <button id="btn-reset">Сброс</button>
+                <span id="result-count" style="color:var(--text-dim);font-size:0.85rem;"></span>
+            </div>
+        </div>
+
+        <div id="loading" class="loading-indicator">Загрузка...</div>
+        <div id="error-state" class="empty-state" style="display:none; border-color: var(--red); color: var(--red);"></div>
+
+        <table class="data-table" id="points-table" style="display:none">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Тип</th>
+                    <th>Широта</th>
+                    <th>Долгота</th>
+                    <th>Вместимость</th>
+                    <th>Описание</th>
+                    <th>Создан</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="points-tbody"></tbody>
+        </table>
+
+        <div class="pagination" id="pagination"></div>
+        <div id="empty-state" class="empty-state" style="display:none">Точки не найдены.</div>
+    </div>
+
+    <div id="modal-create" class="modal-overlay" style="display:none">
+        <div class="modal">
+            <h3>Добавить точку</h3>
+            <div class="form-row"><label>Название: <input id="c-name" type="text" placeholder="Необязательно" /></label></div>
+            <div class="form-row"><label>Тип:
+                <select id="c-type">
+                    <option value="">— Без типа —</option>
+                    <option value="parking">Парковка</option>
+                    <option value="snow_polygon">Снегоплавильня</option>
+                    <option value="service_station">Сервисная станция</option>
+                </select>
+            </label></div>
+            <div class="form-row"><label>Широта: <input id="c-lat" type="number" step="0.000001" value="59.9730" /></label></div>
+            <div class="form-row"><label>Долгота: <input id="c-lng" type="number" step="0.000001" value="30.3180" /></label></div>
+            <div class="form-row"><label>Вместимость: <input id="c-capacity" type="number" /></label></div>
+            <div class="form-row"><label>Описание: <input id="c-desc" type="text" /></label></div>
+            <div class="btn-group">
+                <button id="btn-save-create" class="btn-green">Сохранить</button>
+                <button id="btn-cancel-create">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/points-page.js"></script>
+</body>
+</html>
