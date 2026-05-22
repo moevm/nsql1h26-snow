@@ -1,8 +1,27 @@
 (function () {
-    function loadUsers(name) {
+    function buildQuery() {
+        var p = [];
+        var userId = document.getElementById('f-id').value.trim();
+        var name = document.getElementById('f-name').value.trim();
+        var role = document.getElementById('f-role').value;
+        var createdFrom = document.getElementById('f-created-from').value;
+        var createdTo = document.getElementById('f-created-to').value;
+        var updFrom = document.getElementById('f-upd-from').value;
+        var updTo = document.getElementById('f-upd-to').value;
+        if (userId) p.push('user_id=' + encodeURIComponent(userId));
+        if (name) p.push('name=' + encodeURIComponent(name));
+        if (role) p.push('role=' + encodeURIComponent(role));
+        if (createdFrom) p.push('created_at_from=' + encodeURIComponent(createdFrom));
+        if (createdTo) p.push('created_at_to=' + encodeURIComponent(createdTo));
+        if (updFrom) p.push('updated_at_from=' + encodeURIComponent(updFrom));
+        if (updTo) p.push('updated_at_to=' + encodeURIComponent(updTo));
+        return p.length ? '?' + p.join('&') : '';
+    }
+
+    function loadUsers() {
         if (!AuthModule.getToken()) return;
         showLoading(true);
-        var url = '/api/users/' + (name ? '?name=' + encodeURIComponent(name) : '');
+        var url = '/api/users/' + buildQuery();
         AuthModule.apiFetch(url)
             .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
             .then(function (data) { render(data); showLoading(false); })
@@ -24,7 +43,7 @@
                 + '<td>' + esc(u.name) + '</a></td>'
                 + '<td>' + esc(u.role || 'operator') + '</td>'
                 + '<td>' + fmtDate(u.created_at) + '</td>'
-                + '<td>' + fmtDate(u.time_updated || u.updated_at) + '</td>'
+                + '<td>' + fmtDate(u.updated_at) + '</td>'
                 + '<td style="display:flex;gap:4px">'
                 + '<button class="btn-red" style="padding:2px 8px;font-size:0.8rem" onclick="deleteUser(\'' + u.id + '\')">✕</button>'
                 + '</td>'
@@ -35,7 +54,7 @@
     window.deleteUser = function (id) {
         if (!confirm('Удалить пользователя?')) return;
         AuthModule.apiFetch('/api/users/' + id, { method: 'DELETE' })
-            .then(function () { loadUsers(document.getElementById('f-name').value.trim() || null); })
+            .then(function () { loadUsers(); })
             .catch(function () { alert('Ошибка удаления'); });
     };
 
@@ -58,22 +77,21 @@
                 document.getElementById('modal-create').style.display = 'none';
                 document.getElementById('c-name').value = '';
                 document.getElementById('c-password').value = '';
-                loadUsers(null);
+                loadUsers();
             })
             .catch(function (err) { alert('Ошибка: ' + (err.message || err)); });
     });
 
-    document.getElementById('btn-filter').addEventListener('click', function () {
-        loadUsers(document.getElementById('f-name').value.trim() || null);
-    });
+    document.getElementById('btn-filter').addEventListener('click', function () { loadUsers(); });
     document.getElementById('btn-reset').addEventListener('click', function () {
-        document.getElementById('f-name').value = '';
-        loadUsers(null);
+        ['f-id','f-name','f-created-from','f-created-to','f-upd-from','f-upd-to'].forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ''; });
+        var roleEl = document.getElementById('f-role'); if (roleEl) roleEl.selectedIndex = 0;
+        loadUsers();
     });
 
     function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;') : ''; }
     function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }); }
     function showLoading(s) { var e = document.getElementById('loading'); if (e) e.style.display = s ? '' : 'none'; }
 
-    if (AuthModule.getToken()) loadUsers(null);
+    if (AuthModule.getToken()) loadUsers();
 })();

@@ -118,6 +118,15 @@ async def list_routes(
     streets_max: int | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    updated_at_from: str | None = None,
+    updated_at_to: str | None = None,
+    started_at_from: str | None = None,
+    started_at_to: str | None = None,
+    finished_at_from: str | None = None,
+    finished_at_to: str | None = None,
+    path_nodes_min: int | None = None,
+    path_nodes_max: int | None = None,
+    route_id_filter: str | None = None,
     page: int = 1,
     page_size: int = 20,
     user: str = Depends(get_current_user),
@@ -128,8 +137,18 @@ async def list_routes(
         label=label, distance_min=distance_min, distance_max=distance_max,
         streets_min=streets_min, streets_max=streets_max,
         date_from=date_from, date_to=date_to,
+        updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+        started_at_from=started_at_from, started_at_to=started_at_to,
+        finished_at_from=finished_at_from, finished_at_to=finished_at_to,
+        path_nodes_min=path_nodes_min, path_nodes_max=path_nodes_max,
+        route_id_filter=route_id_filter,
     )
-    result["items"] = [_row_to_route(row) for row in result["items"]]
+    raw_items = result["items"]
+    converted = [_row_to_route(row) for row in raw_items]
+    result["items"] = [
+        {**item.model_dump(), "path_nodes_count": raw.get("path_nodes_count", 0)}
+        for item, raw in zip(converted, raw_items)
+    ]
     return result
 
 @router.get("/{route_id}", response_model=RouteRead)
@@ -254,12 +273,13 @@ def _row_to_route(row: dict) -> RouteRead:
         streets=list(row.get("streets") or []),
         distance_m=float(row.get("distance_m") or 0),
         created_at=_coerce_datetime(row.get("created_at")) or datetime.utcnow(),
+        updated_at=_coerce_datetime(row.get("updated_at")),
         started_at=_coerce_datetime(row.get("started_at")),
         finished_at=_coerce_datetime(row.get("finished_at")),
     )
 
 def _coerce_datetime(value):
-    if value is None:
+    if value is None or value == "datetime()":
         return None
     native = getattr(value, "to_native", None)
     if callable(native):

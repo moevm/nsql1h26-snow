@@ -17,7 +17,23 @@
 
         <div class="filter-section">
             <div class="filter-row">
-                <label>Имя: <input id="f-name" type="text" placeholder="Поиск по подстроке..." /></label>
+                <label>ID: <input id="f-id" type="text" /></label>
+                <label>Имя: <input id="f-name" type="text"  /></label>
+                <label>Роль:
+                    <select id="f-role">
+                        <option value="">Все</option>
+                        <option value="operator">operator</option>
+                        <option value="admin">admin</option>
+                    </select>
+                </label>
+            </div>
+            <div class="filter-row">
+                <label>Создан от: <input id="f-created-from" type="datetime-local" /></label>
+                <label>до: <input id="f-created-to" type="datetime-local" /></label>
+                <label>Изменён от: <input id="f-upd-from" type="datetime-local" /></label>
+                <label>до: <input id="f-upd-to" type="datetime-local" /></label>
+            </div>
+            <div class="filter-row">
                 <button id="btn-filter" class="btn-blue">Применить</button>
                 <button id="btn-reset">Сброс</button>
                 <span id="result-count" style="color:var(--text-dim);font-size:0.85rem;"></span>
@@ -26,7 +42,8 @@
 
         <div id="loading" class="loading-indicator">Загрузка...</div>
 
-        <table class="data-table" id="users-table" style="display:none">
+        <div id="users-table-wrapper" style="overflow-x:auto;width:100%">
+        <table class="data-table" id="users-table" style="display:none;min-width:max-content">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -39,6 +56,7 @@
             </thead>
             <tbody id="users-tbody"></tbody>
         </table>
+        </div>
 
         <div id="empty-state" class="empty-state" style="display:none">Пользователи не найдены.</div>
     </div>

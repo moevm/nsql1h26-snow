@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import shutil
 import copy
 import json
 from functools import lru_cache
@@ -7,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+JSON_NAME = "neo4j_export.json"
+IMPORT_DIR = os.environ.get("NEO4J_IMPORT_DIR", "/neo4j_import")
 
 @lru_cache(maxsize=None)
 def _load_json(filename: str) -> Any:
@@ -28,3 +32,11 @@ def get_seed_routes() -> list[dict]:
 
 def get_seed_simulations() -> list[dict]:
     return load_seed_json("seed_simulations.json")
+
+def get_json_filename() -> str:
+    os.makedirs(IMPORT_DIR, exist_ok=True)
+    targetpath = os.path.join(IMPORT_DIR, JSON_NAME)
+    filepath = os.path.join(DATA_DIR, JSON_NAME)
+    shutil.copy(filepath, targetpath)
+
+    return JSON_NAME

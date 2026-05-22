@@ -24,6 +24,7 @@
                     field('Начало', r.start.lat.toFixed(5) + ', ' + r.start.lng.toFixed(5)),
                     field('Конец', r.end.lat.toFixed(5) + ', ' + r.end.lng.toFixed(5)),
                     field('Создан', fmtDate(r.created_at)),
+                    field('Изменён', fmtDate(r.updated_at)),
                     field('Начало работ', fmtDate(r.started_at)),
                     field('Конец работ', fmtDate(r.finished_at)),
                 ].join('');

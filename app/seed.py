@@ -10,6 +10,7 @@ from app.seed_data import (
     get_seed_map_objects,
     get_seed_routes,
     get_seed_simulations,
+    get_json_filename
 )
 
 logger = logging.getLogger(__name__)
@@ -162,6 +163,23 @@ async def _delete_existing_seed_demo(graph: GraphDAO) -> None:
         DETACH DELETE r
         """
     )
+
+async def import_json(graph: GraphDAO) -> None:
+    meta_rows = await graph.run_query(
+        """
+        MATCH (m:AppMeta {key: 'seed_demo_version'})
+        RETURN m.value AS value
+        """
+    )
+    seed_demo_version = meta_rows[0]["value"] if meta_rows else None
+    if seed_demo_version == "3":
+        logger.info(f"App has data already, skipping json import")
+        return
+    logger.info("Importing the test JSON dump...")
+    filename = get_json_filename()
+    result = await graph.import_apoc(filename)
+    logger.info("APOC import completed: %s", result)
+    await ensure_debug_users(graph)
 
 async def seed_if_empty(graph: GraphDAO) -> None:
     await ensure_debug_users(graph)

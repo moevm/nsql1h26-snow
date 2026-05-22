@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 STATIC_OBJECTS = get_seed_map_objects()
 
 def _coerce_datetime(value):
-    if value is None:
+    if value is None or value == "datetime()":
         return None
     native = getattr(value, "to_native", None)
     if callable(native):
@@ -24,6 +24,11 @@ def _coerce_datetime(value):
 def _flatten(row: dict) -> dict:
     name = row.get("object_name") or row.get("name")
     obj_type = row.get("object_type") or row.get("type")
+    is_infra = row.get("is_infrastructure")
+    if is_infra is None:
+        is_infra = obj_type is not None
+    elif isinstance(is_infra, str):
+        is_infra = is_infra == "True"
     return {
         "id": row.get("id"),
         "name": name,
@@ -33,7 +38,9 @@ def _flatten(row: dict) -> dict:
         "location": {"lat": row.get("lat"), "lng": row.get("lng")},
         "capacity": row.get("capacity"),
         "description": row.get("description"),
+        "is_infrastructure": is_infra,
         "created_at": _coerce_datetime(row.get("created_at")),
+        "updated_at": _coerce_datetime(row.get("updated_at")),
     }
 
 async def _seed_if_needed(graph) -> None:
@@ -59,6 +66,13 @@ async def list_objects(
     lng_min: Optional[float] = None,
     lng_max: Optional[float] = None,
     only_infrastructure: bool = True,
+    created_at_from: Optional[str] = None,
+    created_at_to: Optional[str] = None,
+    updated_at_from: Optional[str] = None,
+    updated_at_to: Optional[str] = None,
+    capacity_min: Optional[float] = None,
+    capacity_max: Optional[float] = None,
+    point_id_filter: Optional[str] = None,
     page: int = 1,
     page_size: int = 50,
     user: str = Depends(get_current_user),
@@ -69,6 +83,10 @@ async def list_objects(
         object_name=name, object_type=type, description=description,
         lat_min=lat_min, lat_max=lat_max, lng_min=lng_min, lng_max=lng_max,
         only_infrastructure=only_infrastructure,
+        created_at_from=created_at_from, created_at_to=created_at_to,
+        updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+        capacity_min=capacity_min, capacity_max=capacity_max,
+        point_id_filter=point_id_filter,
     )
     result["items"] = [_flatten(r) for r in result["items"]]
     return result

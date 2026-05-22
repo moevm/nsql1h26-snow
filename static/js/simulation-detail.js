@@ -70,7 +70,7 @@
                     field('Статус', statusLabels[d.status] || d.status),
                     field('Тик', d.tick),
                     field('Время (мин)', Math.round(d.elapsed_minutes)),
-                    field('Техника активна', d.vehicles_active),
+                    field('Техника', d.vehicles_total || 0),
                     field('В пути', d.vehicles_en_route || 0),
                     field('Убирают', d.vehicles_cleaning || 0),
                     field('На разгрузке', d.vehicles_dumping || 0),
@@ -78,11 +78,12 @@
                     field('Сломаны', d.vehicles_broken),
                     field('В ремонте', d.vehicles_maintenance || 0),
                     field('Убрано дорог', d.roads_cleaned_pct + '%'),
-                    field('Снег (м³)', d.snow_collected_m3),
-                    field('Топливо (л)', d.fuel_spent_l || 0),
-                    field('Средн. топливо', (d.avg_fuel_pct || 0) + '%'),
-                    field('Средн. снег', (d.avg_snow_load_pct || 0) + '%'),
+                    field('Снег собран (м³)', d.snow_collected_m3),
+                    field('Затраты топлива (л)', d.fuel_spent_l || 0),
+                    field('Средн. запасы топлива', (d.avg_fuel_pct || 0) + '%'),
+                    field('Средн. снег в технике', (d.avg_snow_load_pct || 0) + '%'),
                     field('Создан', fmtDate(d.created_at)),
+                    field('Изменён', fmtDate(d.updated_at)),
                     field('Начало', fmtDate(d.started_at)),
                     field('Конец', fmtDate(d.finished_at)),
                 ].join('');
@@ -102,25 +103,6 @@
                 streetsList.innerHTML = (d.streets || []).map(function (s) {
                     return '<li>' + s + '</li>';
                 }).join('') || '<li style="color:var(--text-dim)">Нет данных об улицах</li>';
-
-                AuthModule.apiFetch('/api/statistics/' + simId)
-                    .then(function (r) { return r.ok ? r.json() : null; })
-                    .then(function (st) {
-                        if (!st) {
-                            document.getElementById('sim-stats-attrs').innerHTML = '<div class="field"><span>Нет данных</span><span></span></div>';
-                            return;
-                        }
-                        document.getElementById('sim-stats-attrs').innerHTML = [
-                            field('Общее время', Math.round(st.total_time_min) + ' мин'),
-                            field('Топливо', st.fuel_spent_l + ' л'),
-                            field('Поломки', st.breakdowns),
-                            field('Стоимость ремонта', st.repair_cost_rub + ' руб'),
-                            field('Эффективность', st.efficiency),
-                        ].join('');
-                    })
-                    .catch(function () {
-                        document.getElementById('sim-stats-attrs').innerHTML = '<div class="field"><span>Статистика недоступна</span><span></span></div>';
-                    });
 
                 if (d.route_coords && d.route_coords.length > 0) {
                     var firstPoint = d.route_coords[0][0];
@@ -170,7 +152,6 @@
                         + '<td><a href="/static/route.html?id=' + r.id + '">' + r.id + '</a></td>'
                         + '<td>' + (r.label || '—') + '</td>'
                         + '<td>' + ((r.distance_m || 0) / 1000).toFixed(2) + ' км</td>'
-                        + '<td>' + fmtDate(r.created_at) + '</td>'
                         + '</tr>';
                 }).join('');
             })
@@ -200,7 +181,6 @@
                         + '<td>' + (s.snow_collected || 0) + '</td>'
                         + '<td>' + (s.fuel_spent || 0) + '</td>'
                         + '<td>' + (s.breakdowns || 0) + '</td>'
-                        + '<td>' + fmtDate(s.time_created) + '</td>'
                         + '</tr>';
                 }).join('');
 

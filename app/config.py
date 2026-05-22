@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     pbf_url: str = "https://download.geofabrik.de/russia/northwestern-fed-district-latest.osm.pbf"
     osm_bbox: str = "30.2970,59.9665,30.3305,59.9805"
 
+    import_json: bool = True
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

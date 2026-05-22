@@ -2,6 +2,7 @@ import json
 import json as _json
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -10,6 +11,14 @@ from app.api.rate_limit import limiter
 from app.models.enums import SimulationStatus, VehicleStatus, VehicleType
 from app.models.schemas import LatLng, SimulationCreate, SimulationParams, SimulationState, VehicleState
 from app.services.simulation_engine import SimulationEngine
+
+
+def _as_utc(dt) -> datetime | None:
+    if dt is None:
+        return None
+    if isinstance(dt, datetime) and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -196,6 +205,7 @@ async def _persist_simulation(graph, engine: SimulationEngine, name: str | None 
     if existing:
         sim_data.pop("id")
         await graph.update_simulation(state.id, sim_data)
+        engine.state.updated_at = datetime.now(timezone.utc)
     else:
         sim_data["name"] = name
         await graph.create_simulation(sim_data)
@@ -374,8 +384,11 @@ async def stop(request: Request, sim_id: str, user: str = Depends(get_current_us
 async def get_details(request: Request, sim_id: str, user: str = Depends(get_current_user)):
     if sim_id in _simulations:
         engine = _simulations[sim_id]
+        state_dict = engine.state.model_dump()
+        for dt_field in ("created_at", "updated_at", "started_at", "finished_at"):
+            state_dict[dt_field] = _as_utc(state_dict.get(dt_field))
         return {
-            **engine.state.model_dump(),
+            **state_dict,
             "params": engine.params.model_dump(),
             "route_coords": engine.route_coords,
             "roads_total": engine._roads_total,
@@ -417,6 +430,41 @@ async def list_simulations(
     vehicles_max: int | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    updated_at_from: str | None = None,
+    updated_at_to: str | None = None,
+    vehicles_en_route_min: int | None = None,
+    vehicles_en_route_max: int | None = None,
+    vehicles_cleaning_min: int | None = None,
+    vehicles_cleaning_max: int | None = None,
+    vehicles_dumping_min: int | None = None,
+    vehicles_dumping_max: int | None = None,
+    vehicles_refueling_min: int | None = None,
+    vehicles_refueling_max: int | None = None,
+    vehicles_maintenance_min: int | None = None,
+    vehicles_maintenance_max: int | None = None,
+    snow_min: float | None = None,
+    snow_max: float | None = None,
+    fuel_min: float | None = None,
+    fuel_max: float | None = None,
+    avg_fuel_min: float | None = None,
+    avg_fuel_max: float | None = None,
+    avg_snow_min: float | None = None,
+    avg_snow_max: float | None = None,
+    roads_total_min: int | None = None,
+    roads_total_max: int | None = None,
+    speed_multiplier_min: float | None = None,
+    speed_multiplier_max: float | None = None,
+    tick_duration_min_min: float | None = None,
+    tick_duration_min_max: float | None = None,
+    snowfall_cm_min: float | None = None,
+    snowfall_cm_max: float | None = None,
+    refuel_threshold_min: float | None = None,
+    refuel_threshold_max: float | None = None,
+    dump_threshold_min: float | None = None,
+    dump_threshold_max: float | None = None,
+    snow_melt_rate_min: float | None = None,
+    snow_melt_rate_max: float | None = None,
+    sim_id_filter: str | None = None,
     page: int = 1,
     page_size: int = 20,
     user: str = Depends(get_current_user),
@@ -426,16 +474,68 @@ async def list_simulations(
         page=page, page_size=page_size,
         status=status, name=name, vehicles_min=vehicles_min, vehicles_max=vehicles_max,
         date_from=date_from, date_to=date_to,
+        updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+        vehicles_en_route_min=vehicles_en_route_min, vehicles_en_route_max=vehicles_en_route_max,
+        vehicles_cleaning_min=vehicles_cleaning_min, vehicles_cleaning_max=vehicles_cleaning_max,
+        vehicles_dumping_min=vehicles_dumping_min, vehicles_dumping_max=vehicles_dumping_max,
+        vehicles_refueling_min=vehicles_refueling_min, vehicles_refueling_max=vehicles_refueling_max,
+        vehicles_maintenance_min=vehicles_maintenance_min, vehicles_maintenance_max=vehicles_maintenance_max,
+        snow_min=snow_min, snow_max=snow_max,
+        fuel_min=fuel_min, fuel_max=fuel_max,
+        avg_fuel_min=avg_fuel_min, avg_fuel_max=avg_fuel_max,
+        avg_snow_min=avg_snow_min, avg_snow_max=avg_snow_max,
+        roads_total_min=roads_total_min, roads_total_max=roads_total_max,
+        speed_multiplier_min=speed_multiplier_min, speed_multiplier_max=speed_multiplier_max,
+        tick_duration_min_min=tick_duration_min_min, tick_duration_min_max=tick_duration_min_max,
+        snowfall_cm_min=snowfall_cm_min, snowfall_cm_max=snowfall_cm_max,
+        refuel_threshold_min=refuel_threshold_min, refuel_threshold_max=refuel_threshold_max,
+        dump_threshold_min=dump_threshold_min, dump_threshold_max=dump_threshold_max,
+        snow_melt_rate_min=snow_melt_rate_min, snow_melt_rate_max=snow_melt_rate_max,
+        sim_id_filter=sim_id_filter,
     )
-    in_memory_ids = {engine.sim_id for engine in _simulations.values()}
     items = result["items"]
     for engine in _simulations.values():
         s = engine.state
+        if any(item.get("id") == engine.sim_id for item in items):
+            continue
         sv = s.status.value if hasattr(s.status, "value") else str(s.status)
+        if sim_id_filter and sim_id_filter.lower() not in engine.sim_id.lower():
+            continue
         if status and sv != status:
             continue
-        if not any(item.get("id") == engine.sim_id for item in items):
-            items.insert(0, s.model_dump())
+        if name and name.lower() not in (s.name or "").lower():
+            continue
+        vtotal = getattr(s, "vehicles_total", None) or s.vehicles_active
+        if vehicles_min is not None and vtotal < vehicles_min:
+            continue
+        if vehicles_max is not None and vtotal > vehicles_max:
+            continue
+        from datetime import datetime as _dt
+        def _parse(v):
+            try:
+                return _dt.fromisoformat(v.replace("Z", "+00:00"))
+            except Exception:
+                return None
+        if date_from:
+            ts = _parse(date_from)
+            if ts and s.created_at and s.created_at.replace(tzinfo=None) < ts.replace(tzinfo=None):
+                continue
+        if date_to:
+            ts = _parse(date_to)
+            if ts and s.created_at and s.created_at.replace(tzinfo=None) > ts.replace(tzinfo=None):
+                continue
+        if updated_at_from:
+            ts = _parse(updated_at_from)
+            upd = s.updated_at or s.created_at
+            if ts and upd and upd.replace(tzinfo=None) < ts.replace(tzinfo=None):
+                continue
+        if updated_at_to:
+            ts = _parse(updated_at_to)
+            upd = s.updated_at or s.created_at
+            if ts and upd and upd.replace(tzinfo=None) > ts.replace(tzinfo=None):
+                continue
+        items.insert(0, s.model_dump())
+        result["total"] = result.get("total", 0) + 1
     return result
 
 @router.get("/{sim_id}/routes")
@@ -491,7 +591,8 @@ def _node_to_state_dict(node: dict) -> dict:
         "avg_fuel_pct": node.get("avg_fuel_pct", 0),
         "avg_snow_load_pct": node.get("avg_snow_load_pct", 0),
         "streets": node.get("streets", []),
-        "created_at": node.get("created_at"),
-        "started_at": node.get("started_at"),
-        "finished_at": node.get("finished_at"),
+        "created_at": _as_utc(node.get("created_at")),
+        "updated_at": _as_utc(node.get("updated_at")),
+        "started_at": _as_utc(node.get("started_at")),
+        "finished_at": _as_utc(node.get("finished_at")),
     }

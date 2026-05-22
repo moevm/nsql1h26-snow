@@ -33,14 +33,23 @@
                     field('Вместимость снега (м³)', v.snow_capacity_m3 != null ? v.snow_capacity_m3.toFixed(1) : '—'),
                     field('Шанс поломки', v.breakdown_probability != null ? v.breakdown_probability : '—'),
                     field('Ремонт остался (мин)', v.repair_remaining_min != null ? v.repair_remaining_min.toFixed(1) : '—'),
-                    field('Цель', (v.target_type || '—') + (v.target_id ? ' / ' + v.target_id : '')),
-                    field('Прогресс (м)', v.progress_m != null ? v.progress_m.toFixed(1) : '—'),
+                    field('Цель', (v.target_type ? v.target_type + ' / ' : '') + (v.target_id ? '<a href="/static/point.html?id=' + v.target_id + '">' + v.target_id + '</a>' : '—')),
+                    field('Прогресс уборки сегмента (м)', v.progress_m != null ? v.progress_m.toFixed(1) : '—'),
                     field('Ребро', v.current_edge || '—'),
                     field('Дистанция (км)', v.distance_travelled_km != null ? v.distance_travelled_km.toFixed(2) : '—'),
-                    field('Текущая дорога', v.current_road || '—'),
+                    field('Текущая убираемая дорога', (function() {
+                        if (!v.current_road) return '—';
+                        var parts = v.current_road.split('->');
+                        if (parts.length === 2 && parts[0] && parts[1]) {
+                            return '<a href="/static/point.html?id=' + parts[0] + '">' + parts[0] + '</a> → <a href="/static/point.html?id=' + parts[1] + '">' + parts[1] + '</a>';
+                        }
+                        return v.current_road;
+                    })()),
                     field('Последний тик', v.tick != null ? v.tick : '—'),
                     field('Последний шаг', v.step_id ? '<a href="/static/simulation-step.html?id=' + v.step_id + '">' + v.step_id + '</a>' : '—'),
                     field('Симуляция', v.simulation_id ? '<a href="/static/simulation.html?id=' + v.simulation_id + '">' + v.simulation_id + '</a>' : '—'),
+                    field('Создан', fmtDate(v.created_at)),
+                    field('Изменён', fmtDate(v.updated_at)),
                 ].join('');
 
                 if (v.lat && v.lng) {
@@ -77,11 +86,26 @@
                 table.style.display = '';
                 empty.style.display = 'none';
                 tbody.innerHTML = items.map(function (item) {
+                    var targetCell = (item.target_type ? item.target_type + ' / ' : '') + (item.target_id ? '<a href="/static/point.html?id=' + item.target_id + '">' + item.target_id + '</a>' : '—');
+                    var roadCell = (function() {
+                        if (!item.current_road) return '—';
+                        var parts = item.current_road.split('->');
+                        if (parts.length === 2 && parts[0] && parts[1]) {
+                            return '<a href="/static/point.html?id=' + parts[0] + '">' + parts[0] + '</a> → <a href="/static/point.html?id=' + parts[1] + '">' + parts[1] + '</a>';
+                        }
+                        return item.current_road;
+                    })();
                     return '<tr onclick="window.location=\'/static/simulation-step.html?id=' + item.step_id + '\'" style="cursor:pointer">'
                         + '<td>' + (item.tick != null ? item.tick : '—') + '</td>'
                         + '<td>' + (item.status || '—') + '</td>'
+                        + '<td>' + (item.lat != null ? item.lat.toFixed(5) : '—') + '</td>'
+                        + '<td>' + (item.lng != null ? item.lng.toFixed(5) : '—') + '</td>'
                         + '<td>' + (item.fuel_level != null ? item.fuel_level.toFixed(1) : '—') + '</td>'
                         + '<td>' + (item.snow_loaded_m3 != null ? item.snow_loaded_m3.toFixed(2) : '—') + '</td>'
+                        + '<td>' + (item.speed_kmh != null ? item.speed_kmh.toFixed(1) : '—') + '</td>'
+                        + '<td>' + (item.repair_remaining_min != null ? item.repair_remaining_min.toFixed(1) : '—') + '</td>'
+                        + '<td>' + targetCell + '</td>'
+                        + '<td>' + (item.progress_m != null ? item.progress_m.toFixed(1) : '—') + '</td>'
                         + '<td>' + (item.distance_travelled_km != null ? item.distance_travelled_km.toFixed(2) : '—') + '</td>'
                         + '<td><a href="/static/simulation-step.html?id=' + item.step_id + '">' + item.step_id + '</a></td>'
                         + '</tr>';
@@ -127,6 +151,7 @@
     function field(label, value) {
         return '<div class="field"><span>' + label + '</span><span class="value">' + (value != null ? value : '—') + '</span></div>';
     }
+    function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }); }
 
     if (AuthModule.getToken()) load();
 })();

@@ -6,6 +6,7 @@
 
     function getFilters() {
         return {
+            point_id_filter: document.getElementById('f-point-id').value.trim() || null,
             name: document.getElementById('f-name').value.trim() || null,
             type: document.getElementById('f-type').value || null,
             description: document.getElementById('f-desc').value.trim() || null,
@@ -13,7 +14,13 @@
             lat_max: document.getElementById('f-lat-max').value || null,
             lng_min: document.getElementById('f-lng-min').value || null,
             lng_max: document.getElementById('f-lng-max').value || null,
+            capacity_min: document.getElementById('f-cap-min').value || null,
+            capacity_max: document.getElementById('f-cap-max').value || null,
             only_infrastructure: document.getElementById('f-infra').checked ? 'true' : 'false',
+            created_at_from: document.getElementById('f-created-from').value || null,
+            created_at_to: document.getElementById('f-created-to').value || null,
+            updated_at_from: document.getElementById('f-upd-from').value || null,
+            updated_at_to: document.getElementById('f-upd-to').value || null,
             page: currentPage,
             page_size: pageSize,
         };
@@ -66,12 +73,14 @@
             return '<tr onclick="window.location=\'/static/point.html?id=' + p.id + '\'" style="cursor:pointer">'
                 + '<td style="font-size:0.75rem;color:var(--text-dim)">' + p.id.substring(0, 8) + '…</td>'
                 + '<td><a href="/static/point.html?id=' + p.id + '">' + esc(displayName) + '</a></td>'
+                + '<td>' + (p.is_infrastructure) + '</td>'
                 + '<td>' + (TYPE_LABELS[p.type] || p.type || '—') + '</td>'
                 + '<td>' + (p.lat != null ? p.lat.toFixed(5) : '—') + '</td>'
                 + '<td>' + (p.lng != null ? p.lng.toFixed(5) : '—') + '</td>'
                 + '<td>' + (p.capacity != null ? p.capacity : '—') + '</td>'
                 + '<td>' + esc(p.description || '—') + '</td>'
                 + '<td>' + fmtDate(p.created_at) + '</td>'
+                + '<td>' + fmtDate(p.updated_at) + '</td>'
                 + '<td onclick="event.stopPropagation()"><button class="btn-red" style="padding:2px 8px;font-size:0.8rem" onclick="deletePoint(\'' + p.id + '\')">✕</button></td>'
                 + '</tr>';
         }).join('');
@@ -114,7 +123,9 @@
 
     document.getElementById('btn-filter').addEventListener('click', function () { currentPage = 1; loadPoints(); });
     document.getElementById('btn-reset').addEventListener('click', function () {
-        ['f-name','f-type','f-desc','f-lat-min','f-lat-max','f-lng-min','f-lng-max'].forEach(function(id) {
+        ['f-point-id','f-name','f-type','f-desc','f-lat-min','f-lat-max','f-lng-min','f-lng-max',
+         'f-cap-min','f-cap-max',
+         'f-created-from','f-created-to','f-upd-from','f-upd-to'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.tagName === 'SELECT' ? el.selectedIndex = 0 : (el.value = '');
         });

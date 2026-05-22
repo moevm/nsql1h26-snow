@@ -20,12 +20,14 @@
                 document.getElementById('point-attrs').innerHTML = [
                     field('ID', p.id),
                     field('Название', p.name || '—'),
+                    field('Инфраструктура?', p.is_infrastructure),
                     field('Тип', TYPE_LABELS[p.type] || p.type || '— (не инфраструктурная)'),
                     field('Широта', p.lat != null ? p.lat.toFixed(6) : '—'),
                     field('Долгота', p.lng != null ? p.lng.toFixed(6) : '—'),
                     field('Вместимость', p.capacity != null ? p.capacity : '—'),
                     field('Описание', p.description || '—'),
                     field('Создан', fmtDate(p.created_at)),
+                    field('Изменён', fmtDate(p.updated_at)),
                 ].join('');
                 if (!leafletMap && p.lat && p.lng) {
                     leafletMap = L.map('point-map').setView([p.lat, p.lng], 15);
