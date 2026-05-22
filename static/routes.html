@@ -17,15 +17,28 @@
 
         <div class="filter-section">
             <div class="filter-row">
-                <label>Название: <input id="f-label" type="text" placeholder="Поиск по подстроке..." /></label>
-                <label>Дистанция от (м): <input id="f-dist-min" type="number" placeholder="0" /></label>
-                <label>до (м): <input id="f-dist-max" type="number" placeholder="100000" /></label>
+                <label>ID: <input id="f-route-id" type="text"  /></label>
+                <label>Название: <input id="f-label" type="text"  /></label>
+                <label>Дистанция от (м): <input id="f-dist-min" type="number" /></label>
+                <label>до (м): <input id="f-dist-max" type="number" /></label>
             </div>
             <div class="filter-row">
-                <label>Улиц от: <input id="f-streets-min" type="number" placeholder="0" /></label>
-                <label>до: <input id="f-streets-max" type="number" placeholder="999" /></label>
-                <label>Создан от: <input id="f-date-from" type="date" /></label>
-                <label>до: <input id="f-date-to" type="date" /></label>
+                <label>Улиц от: <input id="f-streets-min" type="number"/></label>
+                <label>до: <input id="f-streets-max" type="number" /></label>
+                <label>Узлов от: <input id="f-nodes-min" type="number"  /></label>
+                <label>до: <input id="f-nodes-max" type="number"/></label>
+            </div>
+            <div class="filter-row">
+                <label>Создан от: <input id="f-date-from" type="datetime-local" /></label>
+                <label>до: <input id="f-date-to" type="datetime-local" /></label>
+                <label>Изменён от: <input id="f-upd-from" type="datetime-local" /></label>
+                <label>до: <input id="f-upd-to" type="datetime-local" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Начало работ от: <input id="f-started-from" type="datetime-local" /></label>
+                <label>до: <input id="f-started-to" type="datetime-local" /></label>
+                <label>Конец работ от: <input id="f-finished-from" type="datetime-local" /></label>
+                <label>до: <input id="f-finished-to" type="datetime-local" /></label>
             </div>
             <div class="filter-row">
                 <button id="btn-filter" class="btn-blue">Применить фильтр</button>
@@ -37,14 +50,17 @@
         <div id="loading" class="loading-indicator">Загрузка...</div>
         <div id="error-state" class="empty-state" style="display:none; border-color: var(--red); color: var(--red);"></div>
 
-        <table class="data-table" id="routes-table" style="display:none">
+        <div id="routes-table-wrapper" style="overflow-x:auto;width:100%">
+        <table class="data-table" id="routes-table" style="display:none;min-width:max-content">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Название</th>
                     <th>Дистанция</th>
                     <th>Улиц</th>
+                    <th>Узлов</th>
                     <th>Создан</th>
+                    <th>Изменён</th>
                     <th>Начало работ</th>
                     <th>Конец работ</th>
                     <th>Действия</th>
@@ -52,6 +68,7 @@
             </thead>
             <tbody id="routes-tbody"></tbody>
         </table>
+        </div>
         <div class="pagination" id="pagination"></div>
         <div id="empty-state" class="empty-state" style="display:none">
             Маршруты не найдены. Создайте маршрут на <a href="/static/index.html">странице карты</a>.

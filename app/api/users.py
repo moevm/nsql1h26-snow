@@ -11,9 +11,24 @@ logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 @router.get("/")
-async def list_users(request: Request, name: str | None = None, user: str = Depends(get_current_user)):
+async def list_users(
+    request: Request,
+    name: str | None = None,
+    created_at_from: str | None = None,
+    created_at_to: str | None = None,
+    updated_at_from: str | None = None,
+    updated_at_to: str | None = None,
+    user_id: str | None = None,
+    role: str | None = None,
+    user: str = Depends(get_current_user),
+):
     graph = request.app.state.graph_dao
-    return await graph.get_users(name=name)
+    return await graph.get_users(
+        name=name,
+        created_at_from=created_at_from, created_at_to=created_at_to,
+        updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+        user_id=user_id, role=role,
+    )
 
 @router.post("/", status_code=201)
 async def create_user(request: Request, body: dict, user: str = Depends(get_current_user)):

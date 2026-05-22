@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -27,7 +27,9 @@ class MapObjectRead(MapObjectCreate):
     id: str
     lat: float
     lng: float
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_infrastructure: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
 
 class MapObjectUpdate(BaseModel):
     name: Optional[str] = None
@@ -83,7 +85,8 @@ class RouteRead(BaseModel):
     path_nodes: list[LatLng] = Field(default_factory=list)
     streets: list[str] = Field(default_factory=list)
     distance_m: float = 0.0
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
 
@@ -128,7 +131,8 @@ class SimulationState(BaseModel):
     avg_fuel_pct: float = 0.0
     avg_snow_load_pct: float = 0.0
     streets: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
 

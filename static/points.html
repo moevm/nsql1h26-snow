@@ -18,7 +18,8 @@
 
         <div class="filter-section">
             <div class="filter-row">
-                <label>Название: <input id="f-name" type="text" placeholder="Поиск по подстроке..." /></label>
+                <label>ID: <input id="f-point-id" type="text"  /></label>
+                <label>Название: <input id="f-name" type="text" /></label>
                 <label>Тип:
                     <select id="f-type">
                         <option value="">Все типы</option>
@@ -27,13 +28,21 @@
                         <option value="service_station">Сервисная станция</option>
                     </select>
                 </label>
-                <label>Описание: <input id="f-desc" type="text" placeholder="Поиск по подстроке..." /></label>
+                <label>Описание: <input id="f-desc" type="text"  /></label>
             </div>
             <div class="filter-row">
-                <label>Широта от: <input id="f-lat-min" type="number" step="0.001" placeholder="59.5" /></label>
-                <label>до: <input id="f-lat-max" type="number" step="0.001" placeholder="60.2" /></label>
-                <label>Долгота от: <input id="f-lng-min" type="number" step="0.001" placeholder="29.5" /></label>
-                <label>до: <input id="f-lng-max" type="number" step="0.001" placeholder="31.0" /></label>
+                <label>Широта от: <input id="f-lat-min" type="number" step="0.001" /></label>
+                <label>до: <input id="f-lat-max" type="number" step="0.001"  /></label>
+                <label>Долгота от: <input id="f-lng-min" type="number" step="0.001"  /></label>
+                <label>до: <input id="f-lng-max" type="number" step="0.001"  /></label>
+                <label>Вместимость от: <input id="f-cap-min" type="number" /></label>
+                <label>до: <input id="f-cap-max" type="number"  /></label>
+            </div>
+            <div class="filter-row">
+                <label>Создан от: <input id="f-created-from" type="datetime-local" /></label>
+                <label>до: <input id="f-created-to" type="datetime-local" /></label>
+                <label>Изменён от: <input id="f-upd-from" type="datetime-local" /></label>
+                <label>до: <input id="f-upd-to" type="datetime-local" /></label>
             </div>
             <div class="filter-row">
                 <label><input id="f-infra" type="checkbox" checked /> Только инфраструктурные</label>
@@ -46,22 +55,26 @@
         <div id="loading" class="loading-indicator">Загрузка...</div>
         <div id="error-state" class="empty-state" style="display:none; border-color: var(--red); color: var(--red);"></div>
 
-        <table class="data-table" id="points-table" style="display:none">
+        <div id="points-table-wrapper" style="overflow-x:auto;width:100%">
+        <table class="data-table" id="points-table" style="display:none;min-width:max-content">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Название</th>
+                    <th>Инфраструктура?</th>
                     <th>Тип</th>
                     <th>Широта</th>
                     <th>Долгота</th>
                     <th>Вместимость</th>
                     <th>Описание</th>
                     <th>Создан</th>
+                    <th>Изменён</th>
                     <th>Действия</th>
                 </tr>
             </thead>
             <tbody id="points-tbody"></tbody>
         </table>
+        </div>
 
         <div class="pagination" id="pagination"></div>
         <div id="empty-state" class="empty-state" style="display:none">Точки не найдены.</div>

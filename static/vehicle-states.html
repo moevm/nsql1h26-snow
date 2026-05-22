@@ -32,19 +32,77 @@
                         <option value="tractor">Трактор</option>
                     </select>
                 </label>
+                <label>Цель тип: <input id="f-target-type" type="text" /></label>
+                <label>Цель ID: <input id="f-target-id" type="text" /></label>
+                <label>ID источника дороги: <input id="f-source-id" type="text" /></label>
+                <label>ID назначения дороги: <input id="f-dest-id" type="text"/></label>
+                <label>ID шага: <input id="f-step-id" type="text" /></label>
+                <label>ID машины: <input id="f-machine-id" type="text" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Создан от: <input id="f-created-from" type="datetime-local" /></label>
+                <label>до: <input id="f-created-to" type="datetime-local" /></label>
+                <label>Изменён от: <input id="f-upd-from" type="datetime-local" /></label>
+                <label>до: <input id="f-upd-to" type="datetime-local" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Широта от: <input id="f-lat-min" type="number" step="0.001" /></label>
+                <label>до: <input id="f-lat-max" type="number" step="0.001" /></label>
+                <label>Долгота от: <input id="f-lng-min" type="number" step="0.001" /></label>
+                <label>до: <input id="f-lng-max" type="number" step="0.001" /></label>
+                <label>Топливо от: <input id="f-fuel-min" type="number" /></label>
+                <label>до: <input id="f-fuel-max" type="number" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Снег (м³) от: <input id="f-snow-min" type="number" /></label>
+                <label>до: <input id="f-snow-max" type="number" /></label>
+                <label>Дистанция от: <input id="f-dist-min" type="number" /></label>
+                <label>до: <input id="f-dist-max" type="number" /></label>
+                <label>Скорость от: <input id="f-speed-min" type="number" /></label>
+                <label>до: <input id="f-speed-max" type="number" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Скор. езды от: <input id="f-travel-speed-min" type="number" /></label>
+                <label>до: <input id="f-travel-speed-max" type="number" /></label>
+                <label>Скор. чистки от: <input id="f-cleaning-speed-min" type="number" /></label>
+                <label>до: <input id="f-cleaning-speed-max" type="number" /></label>
+                <label>Бак (л) от: <input id="f-fuel-cap-min" type="number" /></label>
+                <label>до: <input id="f-fuel-cap-max" type="number" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Ёмк. снег. (м³) от: <input id="f-snow-cap-min" type="number" /></label>
+                <label>до: <input id="f-snow-cap-max" type="number" /></label>
+                <label>Поломка % от: <input id="f-breakdown-min" type="number" step="0.001" /></label>
+                <label>до: <input id="f-breakdown-max" type="number" step="0.001" /></label>
+                <label>Ремонт (мин) от: <input id="f-repair-rem-min" type="number" /></label>
+                <label>до: <input id="f-repair-rem-max" type="number" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Прогресс (м) от: <input id="f-progress-min" type="number" /></label>
+                <label>до: <input id="f-progress-max" type="number" /></label>
+                <label>Тик от: <input id="f-tick-min" type="number" /></label>
+                <label>до: <input id="f-tick-max" type="number" /></label>
+            </div>
+            <div class="filter-row">
                 <button id="btn-filter" class="btn-blue">Найти</button>
                 <button id="btn-reset">Сброс</button>
                 <span id="result-count" style="color:var(--text-dim);font-size:0.85rem;"></span>
             </div>
         </div>
         <div id="loading" class="loading-indicator" style="display:none">Загрузка...</div>
-        <table class="data-table" id="vs-table" style="display:none">
+        <div id="vs-table-wrapper" style="overflow-x:auto;width:100%">
+        <table class="data-table" id="vs-table" style="display:none;min-width:max-content">
             <thead><tr>
-                <th>ID</th><th>Симуляция</th><th>Тип</th><th>Статус</th><th>Широта</th><th>Долгота</th>
-                <th>Топливо</th><th>Снег (м³)</th><th>Дистанция</th><th>Последний тик</th>
+                <th>ID</th><th>Симуляция</th><th>Шаг</th><th>Тип</th><th>Статус</th><th>Широта</th><th>Долгота</th>
+                <th>Топливо</th><th>Снег (м³)</th><th>Дистанция всего</th>
+                <th>Скорость текущая</th><th>Скор. езды</th><th>Скор. чистки</th>
+                <th>Бак (л)</th><th>Ёмкость снег (м³)</th><th>Поломка %</th><th>Ремонт (мин)</th>
+                <th>Цель тип</th><th>Цель ID</th><th>Прогресс уборки (м)</th><th>Убираемая дорога</th>
+                <th>Тик</th><th>Создан</th><th>Изменён</th>
             </tr></thead>
             <tbody id="vs-tbody"></tbody>
         </table>
+        </div>
         <div class="pagination" id="pagination"></div>
         <div id="empty-state" class="empty-state" style="display:none">Состояния не найдены</div>
     </div>

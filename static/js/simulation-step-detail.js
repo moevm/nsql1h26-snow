@@ -72,7 +72,8 @@
                     field('Топливо (л)', s.fuel_spent),
                     field('Поломки', s.breakdowns),
                     field('Симуляция', s.simulation_id ? '<a href="/static/simulation.html?id=' + s.simulation_id + '">' + s.simulation_id + '</a>' : '—'),
-                    field('Время создания', fmtDate(s.time_created)),
+                    field('Создан', fmtDate(s.created_at)),
+                    field('Изменён', fmtDate(s.updated_at)),
                 ].join('');
 
                 var simStateCard = document.getElementById('sim-state-card');

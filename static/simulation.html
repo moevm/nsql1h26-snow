@@ -50,17 +50,13 @@
                 <h3>Задействованные улицы</h3>
                 <ul id="sim-streets" class="streets-list"></ul>
             </div>
-            <div class="detail-card">
-                <h3>Статистика</h3>
-                <div id="sim-stats-attrs"></div>
-            </div>
         </div>
 
         <div class="detail-grid">
             <div class="detail-card" style="grid-column:1/-1">
                 <h3>Маршруты симуляции</h3>
                 <table class="data-table" id="sim-routes-table">
-                    <thead><tr><th>ID</th><th>Название</th><th>Дистанция</th><th>Создан</th></tr></thead>
+                    <thead><tr><th>ID</th><th>Название</th><th>Дистанция</th></tr></thead>
                     <tbody id="sim-routes-tbody"></tbody>
                 </table>
                 <div id="sim-routes-empty" class="empty-state" style="display:none">Маршруты не найдены</div>
@@ -78,7 +74,7 @@
             <div class="detail-card" style="grid-column:1/-1">
                 <h3>Шаги симуляции</h3>
                 <table class="data-table" id="sim-steps-table">
-                    <thead><tr><th>Тик</th><th>% дорог</th><th>Снег (м³)</th><th>Топливо</th><th>Поломки</th><th>Время</th></tr></thead>
+                    <thead><tr><th>Тик</th><th>% дорог</th><th>Снег собран (м³)</th><th>Затраты топлива</th><th>Поломки</th></tr></thead>
                     <tbody id="sim-steps-tbody"></tbody>
                 </table>
                 <div class="pagination" id="steps-pagination"></div>

@@ -19,7 +19,7 @@
                     field('Имя', u.name),
                     field('Роль', u.role || 'operator'),
                     field('Создан', fmtDate(u.created_at)),
-                    field('Изменён', fmtDate(u.time_updated || u.updated_at)),
+                    field('Изменён', fmtDate(u.updated_at)),
                 ].join('');
             })
             .catch(function (err) {

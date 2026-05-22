@@ -12,21 +12,52 @@
         <h2>Шаги симуляции</h2>
         <div class="filter-section">
             <div class="filter-row">
+                <label>ID шага: <input id="f-step-own-id" type="text" /></label>
                 <label>ID симуляции: <input id="f-sim-id" type="text" /></label>
                 <label>Тик от: <input id="f-tick-min" type="number" /></label>
                 <label>до: <input id="f-tick-max" type="number" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Создан от: <input id="f-created-from" type="datetime-local" /></label>
+                <label>до: <input id="f-created-to" type="datetime-local" /></label>
+                <label>Изменён от: <input id="f-upd-from" type="datetime-local" /></label>
+                <label>до: <input id="f-upd-to" type="datetime-local" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Едут от: <input id="f-en-route-min" type="number" /></label>
+                <label>до: <input id="f-en-route-max" type="number" /></label>
+                <label>Чистят от: <input id="f-cleaning-min" type="number" /></label>
+                <label>до: <input id="f-cleaning-max" type="number" /></label>
+                <label>Сброс снега от: <input id="f-dumping-min" type="number" /></label>
+                <label>до: <input id="f-dumping-max" type="number" /></label>
+            </div>
+            <div class="filter-row">
+                <label>Техобслуж. от: <input id="f-maintenance-min" type="number" /></label>
+                <label>до: <input id="f-maintenance-max" type="number" /></label>
+                <label>Ср. топл. % от: <input id="f-avg-fuel-min" type="number" /></label>
+                <label>до: <input id="f-avg-fuel-max" type="number" /></label>
+                <label>Ср. снег % от: <input id="f-avg-snow-min" type="number" /></label>
+                <label>до: <input id="f-avg-snow-max" type="number" /></label>
+            </div>
+            <div class="filter-row">
                 <button id="btn-filter" class="btn-blue">Найти</button>
                 <button id="btn-reset">Сброс</button>
                 <span id="result-count" style="color:var(--text-dim);font-size:0.85rem;"></span>
             </div>
         </div>
         <div id="loading" class="loading-indicator" style="display:none">Загрузка...</div>
-        <table class="data-table" id="steps-table" style="display:none">
+        <div id="steps-table-wrapper" style="overflow-x:auto;width:100%">
+        <table class="data-table" id="steps-table" style="display:none;min-width:max-content">
             <thead><tr>
-                <th>ID</th><th>Тик</th><th>% дорог</th><th>Снег (м³)</th><th>Топливо (л)</th><th>Поломки</th><th>Время</th>
+                <th>ID</th><th>Симуляция</th><th>Тик</th><th>% дорог</th><th>Снег собран (м³)</th><th>Топливо затраты (л)</th><th>Поломки</th>
+                <th>Едут</th><th>Чистят</th><th>Сброс снега</th><th>Техобслуж.</th>
+                <th>Средний запас топлива %</th><th>Средн. снег в технике %</th>
+                <th>Создан</th>
+                <th>Изменён</th>
             </tr></thead>
             <tbody id="steps-tbody"></tbody>
         </table>
+        </div>
         <div class="pagination" id="pagination"></div>
         <div id="empty-state" class="empty-state" style="display:none">Шаги не найдены</div>
     </div>

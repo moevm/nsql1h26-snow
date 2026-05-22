@@ -220,7 +220,8 @@ class GraphDAO:
                 id: $id, object_name: $object_name, object_type: $object_type,
                 lat: $lat, lng: $lng,
                 capacity: $capacity, description: $description,
-                created_at: datetime()
+                created_at: datetime(),
+                updated_at: datetime()
             })
             """,
             id=obj["id"],
@@ -257,8 +258,8 @@ class GraphDAO:
             WHERE {where}
             RETURN o.id AS id, o.object_name AS name, o.object_type AS type,
                    o.lat AS lat, o.lng AS lng, o.capacity AS capacity,
-                   o.description AS description, o.created_at AS created_at
-            ORDER BY o.created_at DESC
+                   o.description AS description, o.created_at AS created_at, o.updated_at AS updated_at
+            ORDER BY o.updated_at DESC
             """,
             obj_type=obj_type, name=name, description=description,
             lat_min=lat_min, lat_max=lat_max, lng_min=lng_min, lng_max=lng_max,
@@ -270,7 +271,7 @@ class GraphDAO:
             MATCH (o:Point {id: $id})
             RETURN o.id AS id, o.object_name AS name, o.object_type AS type,
                    o.lat AS lat, o.lng AS lng, o.capacity AS capacity,
-                   o.description AS description, o.created_at AS created_at
+                   o.description AS description, o.created_at AS created_at, o.updated_at as updated_at
             """,
             id=obj_id,
         )
@@ -279,10 +280,15 @@ class GraphDAO:
     async def update_map_object(self, obj_id: str, updates: dict) -> None:
         field_map = {"name": "object_name", "type": "object_type"}
         mapped = {field_map.get(k, k): v for k, v in updates.items()}
-        set_clauses = ", ".join(f"o.{k} = ${k}" for k in mapped)
+        set_parts = []
+        params = {"id": obj_id}
+        for k, v in mapped.items():
+            set_parts.append(f"o.{k} = ${k}")
+            params[k] = v
+        set_parts.append("o.updated_at = datetime()")
         await self.run_write(
-            f"MATCH (o:Point {{id: $id}}) SET {set_clauses}",
-            id=obj_id, **mapped,
+            f"MATCH (o:Point {{id: $id}}) SET {', '.join(set_parts)}",
+            **params,
         )
 
     async def delete_map_object(self, obj_id: str) -> None:
@@ -413,6 +419,7 @@ class GraphDAO:
                 streets: $streets, distance_m: $distance_m,
                 path_nodes_json: $path_nodes_json,
                 created_at: datetime(),
+                updated_at: datetime(),
                 started_at: null, finished_at: null
             })
             """,
@@ -458,6 +465,7 @@ class GraphDAO:
                    coalesce(r.streets, []) AS streets,
                    coalesce(r.distance_m, 0) AS distance_m,
                    r.created_at AS created_at,
+                   r.updated_at AS updated_at,
                    r.started_at AS started_at,
                    r.finished_at AS finished_at
             ORDER BY r.created_at DESC
@@ -485,6 +493,7 @@ class GraphDAO:
                    coalesce(r.streets, []) AS streets,
                    coalesce(r.distance_m, 0) AS distance_m,
                    r.created_at AS created_at,
+                   r.updated_at AS updated_at,
                    r.started_at AS started_at,
                    r.finished_at AS finished_at
             """,
@@ -493,10 +502,15 @@ class GraphDAO:
         return rows[0] if rows else None
 
     async def update_route(self, route_id: str, updates: dict) -> None:
-        set_clauses = ", ".join(f"r.{k} = ${k}" for k in updates)
+        set_parts = []
+        params = {"id": route_id}
+        for k, v in updates.items():
+            set_parts.append(f"r.{k} = ${k}")
+            params[k] = v
+        set_parts.append("r.updated_at = datetime()")
         await self.run_write(
-            f"MATCH (r:Route {{id: $id}}) SET {set_clauses}",
-            id=route_id, **updates,
+            f"MATCH (r:Route {{id: $id}}) SET {', '.join(set_parts)}",
+            **params,
         )
 
     async def delete_route(self, route_id: str) -> None:
@@ -618,6 +632,7 @@ class GraphDAO:
                    coalesce(r.distance_m, 0) AS distance_m,
                    r.path_nodes_json AS path_nodes_json,
                    r.created_at AS created_at,
+                   r.updated_at AS updated_at,
                    r.started_at AS started_at,
                    r.finished_at AS finished_at
             """,
@@ -635,7 +650,8 @@ class GraphDAO:
                 breakdowns: $breakdowns,
                 tick: $tick,
                 sim_state: $sim_state,
-                time_created: datetime()
+                created_at: datetime(),
+                updated_at: datetime()
             })
             WITH ss
             MATCH (s:Simulation {id: $sim_id})
@@ -652,37 +668,99 @@ class GraphDAO:
         self, sim_id: str = None,
         page: int = 1, page_size: int = 20,
         tick_min: int | None = None, tick_max: int | None = None,
+        created_at_from: str | None = None, created_at_to: str | None = None,
+        updated_at_from: str | None = None, updated_at_to: str | None = None,
+        vs_en_route_min: int | None = None, vs_en_route_max: int | None = None,
+        vs_cleaning_min: int | None = None, vs_cleaning_max: int | None = None,
+        vs_dumping_min: int | None = None, vs_dumping_max: int | None = None,
+        vs_maintenance_min: int | None = None, vs_maintenance_max: int | None = None,
+        avg_fuel_min: float | None = None, avg_fuel_max: float | None = None,
+        avg_snow_min: float | None = None, avg_snow_max: float | None = None,
+        step_own_id: str | None = None,
     ) -> dict:
         import math
         skip = (page - 1) * page_size
         conditions = []
+        if step_own_id:
+            conditions.append("toLower(ss.id) CONTAINS toLower($step_own_id)")
         if sim_id is not None:
             conditions.append("toLower(s.id) CONTAINS toLower($sim_id)")
         if tick_min is not None:
             conditions.append("ss.tick >= $tick_min")
         if tick_max is not None:
             conditions.append("ss.tick <= $tick_max")
+        if created_at_from:
+            conditions.append("ss.created_at >= datetime($created_at_from)")
+        if created_at_to:
+            conditions.append("ss.created_at <= datetime($created_at_to)")
+        if updated_at_from:
+            conditions.append("ss.updated_at >= datetime($updated_at_from)")
+        if updated_at_to:
+            conditions.append("ss.updated_at <= datetime($updated_at_to)")
+        if vs_en_route_min is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).vehicles_en_route, 0)) >= $vs_en_route_min")
+        if vs_en_route_max is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).vehicles_en_route, 0)) <= $vs_en_route_max")
+        if vs_cleaning_min is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).vehicles_cleaning, 0)) >= $vs_cleaning_min")
+        if vs_cleaning_max is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).vehicles_cleaning, 0)) <= $vs_cleaning_max")
+        if vs_dumping_min is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).vehicles_dumping, 0)) >= $vs_dumping_min")
+        if vs_dumping_max is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).vehicles_dumping, 0)) <= $vs_dumping_max")
+        if vs_maintenance_min is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).vehicles_maintenance, 0)) >= $vs_maintenance_min")
+        if vs_maintenance_max is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).vehicles_maintenance, 0)) <= $vs_maintenance_max")
+        if avg_fuel_min is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).avg_fuel_pct, 0)) >= $avg_fuel_min")
+        if avg_fuel_max is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).avg_fuel_pct, 0)) <= $avg_fuel_max")
+        if avg_snow_min is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).avg_snow_load_pct, 0)) >= $avg_snow_min")
+        if avg_snow_max is not None:
+            conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).avg_snow_load_pct, 0)) <= $avg_snow_max")
         where = "WHERE " + " AND ".join(conditions)
         count_rows = await self.run_query(
             f"MATCH (ss:SimulationStep)-[:RUNTIME_STATS]->(s:Simulation) {where if conditions else ''} RETURN count(ss) AS total",
             sim_id=sim_id, tick_min=tick_min, tick_max=tick_max,
+            created_at_from=created_at_from, created_at_to=created_at_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            vs_en_route_min=vs_en_route_min, vs_en_route_max=vs_en_route_max,
+            vs_cleaning_min=vs_cleaning_min, vs_cleaning_max=vs_cleaning_max,
+            vs_dumping_min=vs_dumping_min, vs_dumping_max=vs_dumping_max,
+            vs_maintenance_min=vs_maintenance_min, vs_maintenance_max=vs_maintenance_max,
+            avg_fuel_min=avg_fuel_min, avg_fuel_max=avg_fuel_max,
+            avg_snow_min=avg_snow_min, avg_snow_max=avg_snow_max,
+            step_own_id=step_own_id,
         )
         total = count_rows[0]["total"] if count_rows else 0
         rows = await self.run_query(
             f"""
             MATCH (ss:SimulationStep)-[rs:RUNTIME_STATS]->(s:Simulation)
             {where if conditions else ''}
-            OPTIONAL MATCH (ss)-[rs:RUNTIME_STATS]->(sim)
             RETURN ss.id AS id, ss.roads_cleaned AS roads_cleaned,
                    ss.snow_collected AS snow_collected, ss.fuel_spent AS fuel_spent,
                    ss.breakdowns AS breakdowns, ss.tick AS tick,
-                   ss.time_created AS time_created,
+                   ss.created_at AS created_at,
+                   ss.updated_at AS updated_at,
                    ss.sim_state AS sim_state,
-                   rs.index AS step_index
+                   rs.index AS step_index,
+                   s.id AS simulation_id
             ORDER BY ss.tick
             SKIP $skip LIMIT $page_size
             """,
             sim_id=sim_id, tick_min=tick_min, tick_max=tick_max,
+            created_at_from=created_at_from, created_at_to=created_at_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            vs_en_route_min=vs_en_route_min, vs_en_route_max=vs_en_route_max,
+            vs_cleaning_min=vs_cleaning_min, vs_cleaning_max=vs_cleaning_max,
+            vs_dumping_min=vs_dumping_min, vs_dumping_max=vs_dumping_max,
+            vs_maintenance_min=vs_maintenance_min, vs_maintenance_max=vs_maintenance_max,
+            avg_fuel_min=avg_fuel_min, avg_fuel_max=avg_fuel_max,
+            avg_snow_min=avg_snow_min, avg_snow_max=avg_snow_max,
+            step_own_id=step_own_id,
             skip=skip, page_size=page_size,
         )
         return {
@@ -698,7 +776,8 @@ class GraphDAO:
             RETURN ss.id AS id, ss.roads_cleaned AS roads_cleaned,
                    ss.snow_collected AS snow_collected, ss.fuel_spent AS fuel_spent,
                    ss.breakdowns AS breakdowns, ss.tick AS tick,
-                   ss.time_created AS time_created,
+                   ss.created_at AS created_at,
+                   ss.updated_at AS updated_at,
                    ss.sim_state AS sim_state,
                    rs.index AS step_index,
                    sim.id AS simulation_id
@@ -710,12 +789,15 @@ class GraphDAO:
     async def update_simulation_step(self, step_id: str, updates: dict) -> None:
         allowed = {"roads_cleaned", "snow_collected", "fuel_spent", "breakdowns"}
         filtered = {k: v for k, v in updates.items() if k in allowed}
-        if not filtered:
-            return
-        set_clauses = ", ".join(f"ss.{k} = ${k}" for k in filtered)
+        set_parts = []
+        params = {"id": step_id}
+        for k, v in filtered.items():
+            set_parts.append(f"ss.{k} = ${k}")
+            params[k] = v
+        set_parts.append("ss.updated_at = datetime()")
         await self.run_write(
-            f"MATCH (ss:SimulationStep {{id: $id}}) SET {set_clauses}",
-            id=step_id, **filtered,
+            f"MATCH (ss:SimulationStep {{id: $id}}) SET {', '.join(set_parts)}",
+            **params,
         )
 
     async def delete_simulation_step(self, step_id: str) -> None:
@@ -761,7 +843,9 @@ class GraphDAO:
                     road_resume_lng: $road_resume_lng,
                     progress_m: $progress_m,
                     current_edge: $current_edge,
-                    current_road: $current_road
+                    current_road: $current_road,
+                    created_at: datetime(),
+                    updated_at: datetime()
                 })
                 WITH vs
                 MATCH (ss:SimulationStep {id: $step_id})
@@ -827,6 +911,7 @@ class GraphDAO:
                    vs.road_resume_lat AS road_resume_lat, vs.road_resume_lng AS road_resume_lng,
                    vs.progress_m AS progress_m, vs.current_edge AS current_edge,
                    vs.current_road AS current_road,
+                   vs.created_at AS created_at, vs.updated_at AS updated_at,
                    vd.index AS vehicle_index
             ORDER BY vd.index
             """,
@@ -863,6 +948,7 @@ class GraphDAO:
                    vs.road_resume_lat AS road_resume_lat, vs.road_resume_lng AS road_resume_lng,
                    vs.progress_m AS progress_m, vs.current_edge AS current_edge,
                    vs.current_road AS current_road,
+                   vs.created_at AS created_at, vs.updated_at AS updated_at,
                    vd.index AS vehicle_index
             ORDER BY vd.index
             """,
@@ -901,6 +987,7 @@ class GraphDAO:
                    vs.road_resume_lat AS road_resume_lat, vs.road_resume_lng AS road_resume_lng,
                    vs.progress_m AS progress_m, vs.current_edge AS current_edge,
                    vs.current_road AS current_road,
+                   vs.created_at AS created_at, vs.updated_at AS updated_at,
                    vd.index AS vehicle_index,
                    ss.id AS step_id, ss.tick AS tick,
                    sim.id AS simulation_id
@@ -932,6 +1019,7 @@ class GraphDAO:
                    vs.road_target_lat AS road_target_lat, vs.road_target_lng AS road_target_lng,
                    vs.road_resume_lat AS road_resume_lat, vs.road_resume_lng AS road_resume_lng,
                    vs.progress_m AS progress_m, vs.current_edge AS current_edge,
+                   vs.created_at AS created_at, vs.updated_at AS updated_at,
                    vs.current_road AS current_road,
                    vd.index AS vehicle_index, ss.id AS step_id, ss.tick AS tick,
                    sim.id AS simulation_id
@@ -949,9 +1037,12 @@ class GraphDAO:
             "fuel_capacity_l", "snow_capacity_m3", "breakdown_probability", "repair_time_min",
         }
         filtered = {k: v for k, v in updates.items() if k in allowed}
-        if not filtered:
-            return
-        set_clauses = ", ".join(f"vs.{k} = ${k}" for k in filtered)
+        set_parts = []
+        params = {"id": vs_id}
+        for k, v in filtered.items():
+            set_parts.append(f"vs.{k} = ${k}")
+            params[k] = v
+        set_parts.append("vs.updated_at = datetime()")
         await self.run_write(
             f"""
             MATCH (vs:VehicleState)-[:VEHICLE_DETAILS]->(ss:SimulationStep)
@@ -959,9 +1050,9 @@ class GraphDAO:
             WITH vs, ss
             ORDER BY ss.tick DESC
             LIMIT 1
-            SET {set_clauses}
+            SET {', '.join(set_parts)}
             """,
-            id=vs_id, **filtered,
+            **params,
         )
 
     async def get_vehicle_states(
@@ -970,18 +1061,116 @@ class GraphDAO:
         sim_id: str | None = None,
         status: str | None = None,
         vehicle_type: str | None = None,
+        created_at_from: str | None = None, created_at_to: str | None = None,
+        updated_at_from: str | None = None, updated_at_to: str | None = None,
+        lat_min: float | None = None, lat_max: float | None = None,
+        lng_min: float | None = None, lng_max: float | None = None,
+        fuel_min: float | None = None, fuel_max: float | None = None,
+        snow_min: float | None = None, snow_max: float | None = None,
+        dist_min: float | None = None, dist_max: float | None = None,
+        speed_min: float | None = None, speed_max: float | None = None,
+        travel_speed_min: float | None = None, travel_speed_max: float | None = None,
+        cleaning_speed_min: float | None = None, cleaning_speed_max: float | None = None,
+        fuel_cap_min: float | None = None, fuel_cap_max: float | None = None,
+        snow_cap_min: float | None = None, snow_cap_max: float | None = None,
+        breakdown_min: float | None = None, breakdown_max: float | None = None,
+        repair_rem_min: float | None = None, repair_rem_max: float | None = None,
+        progress_min: float | None = None, progress_max: float | None = None,
+        tick_min: int | None = None, tick_max: int | None = None,
+        target_type_filter: str | None = None,
+        target_id_filter: str | None = None,
+        source_id_filter: str | None = None,
+        dest_id_filter: str | None = None,
+        step_id_filter: str | None = None,
+        machine_id_filter: str | None = None,
     ) -> dict:
         import math
         base_conditions = []
         latest_conditions = []
         if step_id:
             base_conditions.append("toLower(ss.id) CONTAINS toLower($step_id)")
+        if step_id_filter:
+            base_conditions.append("toLower(ss.id) CONTAINS toLower($step_id_filter)")
         if sim_id:
             base_conditions.append("toLower(sim.id) CONTAINS toLower($sim_id)")
         if vehicle_type:
             base_conditions.append("vs.vehicle_type = $vehicle_type")
         if status:
             latest_conditions.append("vs.status = $status")
+        if created_at_from:
+            latest_conditions.append("vs.created_at >= datetime($created_at_from)")
+        if created_at_to:
+            latest_conditions.append("vs.created_at <= datetime($created_at_to)")
+        if updated_at_from:
+            latest_conditions.append("vs.updated_at >= datetime($updated_at_from)")
+        if updated_at_to:
+            latest_conditions.append("vs.updated_at <= datetime($updated_at_to)")
+        if lat_min is not None:
+            latest_conditions.append("vs.lat >= $lat_min")
+        if lat_max is not None:
+            latest_conditions.append("vs.lat <= $lat_max")
+        if lng_min is not None:
+            latest_conditions.append("vs.lng >= $lng_min")
+        if lng_max is not None:
+            latest_conditions.append("vs.lng <= $lng_max")
+        if fuel_min is not None:
+            latest_conditions.append("vs.fuel_level >= $fuel_min")
+        if fuel_max is not None:
+            latest_conditions.append("vs.fuel_level <= $fuel_max")
+        if snow_min is not None:
+            latest_conditions.append("vs.snow_loaded_m3 >= $snow_min")
+        if snow_max is not None:
+            latest_conditions.append("vs.snow_loaded_m3 <= $snow_max")
+        if dist_min is not None:
+            latest_conditions.append("vs.distance_travelled_km >= $dist_min")
+        if dist_max is not None:
+            latest_conditions.append("vs.distance_travelled_km <= $dist_max")
+        if speed_min is not None:
+            latest_conditions.append("vs.speed_kmh >= $speed_min")
+        if speed_max is not None:
+            latest_conditions.append("vs.speed_kmh <= $speed_max")
+        if travel_speed_min is not None:
+            latest_conditions.append("vs.travel_speed_kmh >= $travel_speed_min")
+        if travel_speed_max is not None:
+            latest_conditions.append("vs.travel_speed_kmh <= $travel_speed_max")
+        if cleaning_speed_min is not None:
+            latest_conditions.append("vs.cleaning_speed_kmh >= $cleaning_speed_min")
+        if cleaning_speed_max is not None:
+            latest_conditions.append("vs.cleaning_speed_kmh <= $cleaning_speed_max")
+        if fuel_cap_min is not None:
+            latest_conditions.append("vs.fuel_capacity_l >= $fuel_cap_min")
+        if fuel_cap_max is not None:
+            latest_conditions.append("vs.fuel_capacity_l <= $fuel_cap_max")
+        if snow_cap_min is not None:
+            latest_conditions.append("vs.snow_capacity_m3 >= $snow_cap_min")
+        if snow_cap_max is not None:
+            latest_conditions.append("vs.snow_capacity_m3 <= $snow_cap_max")
+        if breakdown_min is not None:
+            latest_conditions.append("vs.breakdown_probability >= $breakdown_min")
+        if breakdown_max is not None:
+            latest_conditions.append("vs.breakdown_probability <= $breakdown_max")
+        if repair_rem_min is not None:
+            latest_conditions.append("vs.repair_remaining_min >= $repair_rem_min")
+        if repair_rem_max is not None:
+            latest_conditions.append("vs.repair_remaining_min <= $repair_rem_max")
+        if progress_min is not None:
+            latest_conditions.append("vs.progress_m >= $progress_min")
+        if progress_max is not None:
+            latest_conditions.append("vs.progress_m <= $progress_max")
+        if tick_min is not None:
+            latest_conditions.append("ss2.tick >= $tick_min")
+        if tick_max is not None:
+            latest_conditions.append("ss2.tick <= $tick_max")
+        if target_type_filter:
+            latest_conditions.append("toLower(coalesce(vs.target_type, '')) CONTAINS toLower($target_type_filter)")
+        if target_id_filter:
+            latest_conditions.append("toLower(coalesce(vs.target_id, '')) CONTAINS toLower($target_id_filter)")
+        if source_id_filter:
+            latest_conditions.append("toLower(split(coalesce(vs.current_road, ''), '->')[0]) CONTAINS toLower($source_id_filter)")
+        if dest_id_filter:
+            latest_conditions.append("toLower(split(coalesce(vs.current_road, ''), '->')[1]) CONTAINS toLower($dest_id_filter)")
+        if machine_id_filter:
+            base_conditions.append("toLower(coalesce(vs.machine_id, vs.id)) CONTAINS toLower($machine_id_filter)")
         base_where = "WHERE " + " AND ".join(base_conditions) if base_conditions else ""
         latest_where = "AND " + " AND ".join(latest_conditions) if latest_conditions else ""
         skip = (page - 1) * page_size
@@ -994,6 +1183,24 @@ class GraphDAO:
              RETURN count(machine_id) AS total
              """,
             step_id=step_id, sim_id=sim_id, status=status, vehicle_type=vehicle_type,
+            created_at_from=created_at_from, created_at_to=created_at_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            lat_min=lat_min, lat_max=lat_max, lng_min=lng_min, lng_max=lng_max,
+            fuel_min=fuel_min, fuel_max=fuel_max,
+            snow_min=snow_min, snow_max=snow_max,
+            dist_min=dist_min, dist_max=dist_max,
+            speed_min=speed_min, speed_max=speed_max,
+            travel_speed_min=travel_speed_min, travel_speed_max=travel_speed_max,
+            cleaning_speed_min=cleaning_speed_min, cleaning_speed_max=cleaning_speed_max,
+            fuel_cap_min=fuel_cap_min, fuel_cap_max=fuel_cap_max,
+            snow_cap_min=snow_cap_min, snow_cap_max=snow_cap_max,
+            breakdown_min=breakdown_min, breakdown_max=breakdown_max,
+            repair_rem_min=repair_rem_min, repair_rem_max=repair_rem_max,
+            progress_min=progress_min, progress_max=progress_max,
+            tick_min=tick_min, tick_max=tick_max,
+            target_type_filter=target_type_filter, target_id_filter=target_id_filter,
+            source_id_filter=source_id_filter, dest_id_filter=dest_id_filter,
+            step_id_filter=step_id_filter, machine_id_filter=machine_id_filter,
         )
         total = count_rows[0]["total"] if count_rows else 0
         rows = await self.run_query(
@@ -1021,12 +1228,31 @@ class GraphDAO:
                    vs.road_resume_lat AS road_resume_lat, vs.road_resume_lng AS road_resume_lng,
                    vs.progress_m AS progress_m, vs.current_edge AS current_edge,
                    vs.current_road AS current_road,
+                   vs.created_at AS created_at, vs.updated_at AS updated_at,
                    vd.index AS vehicle_index,
                    ss2.id AS step_id, ss2.tick AS tick, sim2.id AS simulation_id
             ORDER BY ss2.tick DESC, vd.index
             SKIP $skip LIMIT $page_size
             """,
             step_id=step_id, sim_id=sim_id, status=status, vehicle_type=vehicle_type,
+            created_at_from=created_at_from, created_at_to=created_at_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            lat_min=lat_min, lat_max=lat_max, lng_min=lng_min, lng_max=lng_max,
+            fuel_min=fuel_min, fuel_max=fuel_max,
+            snow_min=snow_min, snow_max=snow_max,
+            dist_min=dist_min, dist_max=dist_max,
+            speed_min=speed_min, speed_max=speed_max,
+            travel_speed_min=travel_speed_min, travel_speed_max=travel_speed_max,
+            cleaning_speed_min=cleaning_speed_min, cleaning_speed_max=cleaning_speed_max,
+            fuel_cap_min=fuel_cap_min, fuel_cap_max=fuel_cap_max,
+            snow_cap_min=snow_cap_min, snow_cap_max=snow_cap_max,
+            breakdown_min=breakdown_min, breakdown_max=breakdown_max,
+            repair_rem_min=repair_rem_min, repair_rem_max=repair_rem_max,
+            progress_min=progress_min, progress_max=progress_max,
+            tick_min=tick_min, tick_max=tick_max,
+            target_type_filter=target_type_filter, target_id_filter=target_id_filter,
+            source_id_filter=source_id_filter, dest_id_filter=dest_id_filter,
+            step_id_filter=step_id_filter, machine_id_filter=machine_id_filter,
             skip=skip, page_size=page_size,
         )
         return {
@@ -1042,9 +1268,15 @@ class GraphDAO:
         lat_min: float | None = None, lat_max: float | None = None,
         lng_min: float | None = None, lng_max: float | None = None,
         only_infrastructure: bool = False,
+        created_at_from: str | None = None, created_at_to: str | None = None,
+        updated_at_from: str | None = None, updated_at_to: str | None = None,
+        capacity_min: float | None = None, capacity_max: float | None = None,
+        point_id_filter: str | None = None,
     ) -> dict:
         import math
         conditions = []
+        if point_id_filter:
+            conditions.append("toLower(p.id) CONTAINS toLower($point_id_filter)")
         if only_infrastructure:
             conditions.append("p.object_type IS NOT NULL")
         if object_name:
@@ -1061,12 +1293,28 @@ class GraphDAO:
             conditions.append("p.lng >= $lng_min")
         if lng_max is not None:
             conditions.append("p.lng <= $lng_max")
+        if created_at_from:
+            conditions.append("p.created_at >= datetime($created_at_from)")
+        if created_at_to:
+            conditions.append("p.created_at <= datetime($created_at_to)")
+        if updated_at_from:
+            conditions.append("p.updated_at >= datetime($updated_at_from)")
+        if updated_at_to:
+            conditions.append("p.updated_at <= datetime($updated_at_to)")
+        if capacity_min is not None:
+            conditions.append("toFloat(coalesce(p.capacity, 0)) >= $capacity_min")
+        if capacity_max is not None:
+            conditions.append("toFloat(coalesce(p.capacity, 0)) <= $capacity_max")
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         skip = (page - 1) * page_size
         count_rows = await self.run_query(
             f"MATCH (p:Point) {where} RETURN count(p) AS total",
             object_name=object_name, object_type=object_type, description=description,
             lat_min=lat_min, lat_max=lat_max, lng_min=lng_min, lng_max=lng_max,
+            created_at_from=created_at_from, created_at_to=created_at_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            capacity_min=capacity_min, capacity_max=capacity_max,
+            point_id_filter=point_id_filter,
         )
         total = count_rows[0]["total"] if count_rows else 0
         rows = await self.run_query(
@@ -1075,12 +1323,17 @@ class GraphDAO:
             {where}
             RETURN p.id AS id, p.object_name AS object_name, p.object_type AS object_type,
                    p.lat AS lat, p.lng AS lng, p.description AS description,
-                   p.capacity AS capacity, p.created_at AS created_at
-            ORDER BY p.object_type DESC, p.created_at DESC
+                   p.capacity AS capacity, p.created_at AS created_at, p.updated_at AS updated_at,
+                   CASE WHEN p.object_type IS NOT NULL THEN 'True' ELSE 'False' END AS is_infrastructure
+            ORDER BY p.object_type DESC, p.updated_at DESC
             SKIP $skip LIMIT $page_size
             """,
             object_name=object_name, object_type=object_type, description=description,
             lat_min=lat_min, lat_max=lat_max, lng_min=lng_min, lng_max=lng_max,
+            created_at_from=created_at_from, created_at_to=created_at_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            capacity_min=capacity_min, capacity_max=capacity_max,
+            point_id_filter=point_id_filter,
             skip=skip, page_size=page_size,
         )
         return {
@@ -1094,9 +1347,16 @@ class GraphDAO:
         distance_min: float | None = None, distance_max: float | None = None,
         streets_min: int | None = None, streets_max: int | None = None,
         date_from: str | None = None, date_to: str | None = None,
+        updated_at_from: str | None = None, updated_at_to: str | None = None,
+        started_at_from: str | None = None, started_at_to: str | None = None,
+        finished_at_from: str | None = None, finished_at_to: str | None = None,
+        path_nodes_min: int | None = None, path_nodes_max: int | None = None,
+        route_id_filter: str | None = None,
     ) -> dict:
         import math
         conditions = []
+        if route_id_filter:
+            conditions.append("toLower(r.id) CONTAINS toLower($route_id_filter)")
         if label:
             conditions.append("toLower(coalesce(r.label, '')) CONTAINS toLower($label)")
         if distance_min is not None:
@@ -1107,12 +1367,33 @@ class GraphDAO:
             conditions.append("r.created_at >= datetime($date_from)")
         if date_to:
             conditions.append("r.created_at <= datetime($date_to)")
+        if updated_at_from:
+            conditions.append("r.updated_at >= datetime($updated_at_from)")
+        if updated_at_to:
+            conditions.append("r.updated_at <= datetime($updated_at_to)")
+        if started_at_from:
+            conditions.append("r.started_at >= datetime($started_at_from)")
+        if started_at_to:
+            conditions.append("r.started_at <= datetime($started_at_to)")
+        if finished_at_from:
+            conditions.append("r.finished_at >= datetime($finished_at_from)")
+        if finished_at_to:
+            conditions.append("r.finished_at <= datetime($finished_at_to)")
+        if path_nodes_min is not None:
+            conditions.append("size(apoc.convert.fromJsonList(coalesce(r.path_nodes_json, '[]'))) >= $path_nodes_min")
+        if path_nodes_max is not None:
+            conditions.append("size(apoc.convert.fromJsonList(coalesce(r.path_nodes_json, '[]'))) <= $path_nodes_max")
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         skip = (page - 1) * page_size
         count_rows = await self.run_query(
             f"MATCH (r:Route) {where} RETURN count(r) AS total",
             label=label, distance_min=distance_min, distance_max=distance_max,
             date_from=date_from, date_to=date_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            started_at_from=started_at_from, started_at_to=started_at_to,
+            finished_at_from=finished_at_from, finished_at_to=finished_at_to,
+            path_nodes_min=path_nodes_min, path_nodes_max=path_nodes_max,
+            route_id_filter=route_id_filter,
         )
         total = count_rows[0]["total"] if count_rows else 0
         rows = await self.run_query(
@@ -1126,13 +1407,21 @@ class GraphDAO:
                    coalesce(r.streets, []) AS streets,
                    coalesce(r.distance_m, 0) AS distance_m,
                    r.created_at AS created_at,
+                   r.updated_at AS updated_at,
                    r.started_at AS started_at,
-                   r.finished_at AS finished_at
-            ORDER BY r.created_at DESC
+                   r.finished_at AS finished_at,
+                   CASE WHEN r.path_nodes_json IS NOT NULL THEN size(apoc.convert.fromJsonList(coalesce(r.path_nodes_json, '[]'))) ELSE 0 END AS path_nodes_count
+            ORDER BY r.updated_at DESC
             SKIP $skip LIMIT $page_size
             """,
             label=label, distance_min=distance_min, distance_max=distance_max,
-            date_from=date_from, date_to=date_to, skip=skip, page_size=page_size,
+            date_from=date_from, date_to=date_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            started_at_from=started_at_from, started_at_to=started_at_to,
+            finished_at_from=finished_at_from, finished_at_to=finished_at_to,
+            path_nodes_min=path_nodes_min, path_nodes_max=path_nodes_max,
+            route_id_filter=route_id_filter,
+            skip=skip, page_size=page_size,
         )
         if streets_min is not None:
             rows = [r for r in rows if len(r.get("streets") or []) >= streets_min]
@@ -1149,9 +1438,29 @@ class GraphDAO:
         name: str | None = None,
         vehicles_min: int | None = None, vehicles_max: int | None = None,
         date_from: str | None = None, date_to: str | None = None,
+        updated_at_from: str | None = None, updated_at_to: str | None = None,
+        vehicles_en_route_min: int | None = None, vehicles_en_route_max: int | None = None,
+        vehicles_cleaning_min: int | None = None, vehicles_cleaning_max: int | None = None,
+        vehicles_dumping_min: int | None = None, vehicles_dumping_max: int | None = None,
+        vehicles_refueling_min: int | None = None, vehicles_refueling_max: int | None = None,
+        vehicles_maintenance_min: int | None = None, vehicles_maintenance_max: int | None = None,
+        snow_min: float | None = None, snow_max: float | None = None,
+        fuel_min: float | None = None, fuel_max: float | None = None,
+        avg_fuel_min: float | None = None, avg_fuel_max: float | None = None,
+        avg_snow_min: float | None = None, avg_snow_max: float | None = None,
+        roads_total_min: int | None = None, roads_total_max: int | None = None,
+        speed_multiplier_min: float | None = None, speed_multiplier_max: float | None = None,
+        tick_duration_min_min: float | None = None, tick_duration_min_max: float | None = None,
+        snowfall_cm_min: float | None = None, snowfall_cm_max: float | None = None,
+        refuel_threshold_min: float | None = None, refuel_threshold_max: float | None = None,
+        dump_threshold_min: float | None = None, dump_threshold_max: float | None = None,
+        snow_melt_rate_min: float | None = None, snow_melt_rate_max: float | None = None,
+        sim_id_filter: str | None = None,
     ) -> dict:
         import math
         conditions = []
+        if sim_id_filter:
+            conditions.append("toLower(s.id) CONTAINS toLower($sim_id_filter)")
         if status:
             conditions.append("s.status = $status")
         if name:
@@ -1164,12 +1473,98 @@ class GraphDAO:
             conditions.append("s.created_at >= datetime($date_from)")
         if date_to:
             conditions.append("s.created_at <= datetime($date_to)")
+        if updated_at_from:
+            conditions.append("s.updated_at >= datetime($updated_at_from)")
+        if updated_at_to:
+            conditions.append("s.updated_at <= datetime($updated_at_to)")
+        if vehicles_en_route_min is not None:
+            conditions.append("coalesce(s.vehicles_en_route, 0) >= $vehicles_en_route_min")
+        if vehicles_en_route_max is not None:
+            conditions.append("coalesce(s.vehicles_en_route, 0) <= $vehicles_en_route_max")
+        if vehicles_cleaning_min is not None:
+            conditions.append("coalesce(s.vehicles_cleaning, 0) >= $vehicles_cleaning_min")
+        if vehicles_cleaning_max is not None:
+            conditions.append("coalesce(s.vehicles_cleaning, 0) <= $vehicles_cleaning_max")
+        if vehicles_dumping_min is not None:
+            conditions.append("coalesce(s.vehicles_dumping, 0) >= $vehicles_dumping_min")
+        if vehicles_dumping_max is not None:
+            conditions.append("coalesce(s.vehicles_dumping, 0) <= $vehicles_dumping_max")
+        if vehicles_refueling_min is not None:
+            conditions.append("coalesce(s.vehicles_refueling, 0) >= $vehicles_refueling_min")
+        if vehicles_refueling_max is not None:
+            conditions.append("coalesce(s.vehicles_refueling, 0) <= $vehicles_refueling_max")
+        if vehicles_maintenance_min is not None:
+            conditions.append("coalesce(s.vehicles_maintenance, 0) >= $vehicles_maintenance_min")
+        if vehicles_maintenance_max is not None:
+            conditions.append("coalesce(s.vehicles_maintenance, 0) <= $vehicles_maintenance_max")
+        if snow_min is not None:
+            conditions.append("coalesce(s.snow_collected_m3, 0) >= $snow_min")
+        if snow_max is not None:
+            conditions.append("coalesce(s.snow_collected_m3, 0) <= $snow_max")
+        if fuel_min is not None:
+            conditions.append("coalesce(s.fuel_spent_l, 0) >= $fuel_min")
+        if fuel_max is not None:
+            conditions.append("coalesce(s.fuel_spent_l, 0) <= $fuel_max")
+        if avg_fuel_min is not None:
+            conditions.append("coalesce(s.avg_fuel_pct, 0) >= $avg_fuel_min")
+        if avg_fuel_max is not None:
+            conditions.append("coalesce(s.avg_fuel_pct, 0) <= $avg_fuel_max")
+        if avg_snow_min is not None:
+            conditions.append("coalesce(s.avg_snow_load_pct, 0) >= $avg_snow_min")
+        if avg_snow_max is not None:
+            conditions.append("coalesce(s.avg_snow_load_pct, 0) <= $avg_snow_max")
+        if roads_total_min is not None:
+            conditions.append("coalesce(s.roads_total, 0) >= $roads_total_min")
+        if roads_total_max is not None:
+            conditions.append("coalesce(s.roads_total, 0) <= $roads_total_max")
+        if speed_multiplier_min is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).speed_multiplier, 0)) ELSE 0.0 END >= $speed_multiplier_min")
+        if speed_multiplier_max is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).speed_multiplier, 0)) ELSE 0.0 END <= $speed_multiplier_max")
+        if tick_duration_min_min is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).tick_duration_min, 0)) ELSE 0.0 END >= $tick_duration_min_min")
+        if tick_duration_min_max is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).tick_duration_min, 0)) ELSE 0.0 END <= $tick_duration_min_max")
+        if snowfall_cm_min is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).snowfall_cm, 0)) ELSE 0.0 END >= $snowfall_cm_min")
+        if snowfall_cm_max is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).snowfall_cm, 0)) ELSE 0.0 END <= $snowfall_cm_max")
+        if refuel_threshold_min is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).refuel_threshold_pct, 0)) ELSE 0.0 END >= $refuel_threshold_min")
+        if refuel_threshold_max is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).refuel_threshold_pct, 0)) ELSE 0.0 END <= $refuel_threshold_max")
+        if dump_threshold_min is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).dump_threshold_pct, 0)) ELSE 0.0 END >= $dump_threshold_min")
+        if dump_threshold_max is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).dump_threshold_pct, 0)) ELSE 0.0 END <= $dump_threshold_max")
+        if snow_melt_rate_min is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).snow_melt_rate_m3_per_tick, 0)) ELSE 0.0 END >= $snow_melt_rate_min")
+        if snow_melt_rate_max is not None:
+            conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).snow_melt_rate_m3_per_tick, 0)) ELSE 0.0 END <= $snow_melt_rate_max")
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         skip = (page - 1) * page_size
         count_rows = await self.run_query(
             f"MATCH (s:Simulation) {where} RETURN count(s) AS total",
             status=status, name=name, vehicles_min=vehicles_min, vehicles_max=vehicles_max,
             date_from=date_from, date_to=date_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            vehicles_en_route_min=vehicles_en_route_min, vehicles_en_route_max=vehicles_en_route_max,
+            vehicles_cleaning_min=vehicles_cleaning_min, vehicles_cleaning_max=vehicles_cleaning_max,
+            vehicles_dumping_min=vehicles_dumping_min, vehicles_dumping_max=vehicles_dumping_max,
+            vehicles_refueling_min=vehicles_refueling_min, vehicles_refueling_max=vehicles_refueling_max,
+            vehicles_maintenance_min=vehicles_maintenance_min, vehicles_maintenance_max=vehicles_maintenance_max,
+            snow_min=snow_min, snow_max=snow_max,
+            fuel_min=fuel_min, fuel_max=fuel_max,
+            avg_fuel_min=avg_fuel_min, avg_fuel_max=avg_fuel_max,
+            avg_snow_min=avg_snow_min, avg_snow_max=avg_snow_max,
+            roads_total_min=roads_total_min, roads_total_max=roads_total_max,
+            speed_multiplier_min=speed_multiplier_min, speed_multiplier_max=speed_multiplier_max,
+            tick_duration_min_min=tick_duration_min_min, tick_duration_min_max=tick_duration_min_max,
+            snowfall_cm_min=snowfall_cm_min, snowfall_cm_max=snowfall_cm_max,
+            refuel_threshold_min=refuel_threshold_min, refuel_threshold_max=refuel_threshold_max,
+            dump_threshold_min=dump_threshold_min, dump_threshold_max=dump_threshold_max,
+            snow_melt_rate_min=snow_melt_rate_min, snow_melt_rate_max=snow_melt_rate_max,
+            sim_id_filter=sim_id_filter,
         )
         total = count_rows[0]["total"] if count_rows else 0
         rows = await self.run_query(
@@ -1179,16 +1574,42 @@ class GraphDAO:
                    s.tick AS tick, s.elapsed_minutes AS elapsed_minutes,
                    coalesce(s.vehicles_total, s.vehicles_active, 0) AS vehicles_total,
                    s.vehicles_active AS vehicles_active, s.vehicles_broken AS vehicles_broken,
+                   s.vehicles_en_route AS vehicles_en_route, s.vehicles_cleaning AS vehicles_cleaning,
+                   s.vehicles_dumping AS vehicles_dumping, s.vehicles_refueling AS vehicles_refueling,
+                   s.vehicles_maintenance AS vehicles_maintenance,
                    s.roads_cleaned_pct AS roads_cleaned_pct, s.snow_collected_m3 AS snow_collected_m3,
+                   s.fuel_spent_l AS fuel_spent_l, s.avg_fuel_pct AS avg_fuel_pct,
+                   s.avg_snow_load_pct AS avg_snow_load_pct,
                    coalesce(s.streets, []) AS streets,
                    s.roads_total AS roads_total,
                    s.created_at AS created_at,
-                   s.started_at AS started_at, s.finished_at AS finished_at
-            ORDER BY s.created_at DESC
+                   s.updated_at AS updated_at,
+                   s.started_at AS started_at, s.finished_at AS finished_at,
+                   s.params_json AS params_json
+            ORDER BY s.updated_at DESC
             SKIP $skip LIMIT $page_size
             """,
             status=status, name=name, vehicles_min=vehicles_min, vehicles_max=vehicles_max,
-            date_from=date_from, date_to=date_to, skip=skip, page_size=page_size,
+            date_from=date_from, date_to=date_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
+            vehicles_en_route_min=vehicles_en_route_min, vehicles_en_route_max=vehicles_en_route_max,
+            vehicles_cleaning_min=vehicles_cleaning_min, vehicles_cleaning_max=vehicles_cleaning_max,
+            vehicles_dumping_min=vehicles_dumping_min, vehicles_dumping_max=vehicles_dumping_max,
+            vehicles_refueling_min=vehicles_refueling_min, vehicles_refueling_max=vehicles_refueling_max,
+            vehicles_maintenance_min=vehicles_maintenance_min, vehicles_maintenance_max=vehicles_maintenance_max,
+            snow_min=snow_min, snow_max=snow_max,
+            fuel_min=fuel_min, fuel_max=fuel_max,
+            avg_fuel_min=avg_fuel_min, avg_fuel_max=avg_fuel_max,
+            avg_snow_min=avg_snow_min, avg_snow_max=avg_snow_max,
+            roads_total_min=roads_total_min, roads_total_max=roads_total_max,
+            speed_multiplier_min=speed_multiplier_min, speed_multiplier_max=speed_multiplier_max,
+            tick_duration_min_min=tick_duration_min_min, tick_duration_min_max=tick_duration_min_max,
+            snowfall_cm_min=snowfall_cm_min, snowfall_cm_max=snowfall_cm_max,
+            refuel_threshold_min=refuel_threshold_min, refuel_threshold_max=refuel_threshold_max,
+            dump_threshold_min=dump_threshold_min, dump_threshold_max=dump_threshold_max,
+            snow_melt_rate_min=snow_melt_rate_min, snow_melt_rate_max=snow_melt_rate_max,
+            sim_id_filter=sim_id_filter,
+            skip=skip, page_size=page_size,
         )
         return {
             "items": rows, "total": total, "page": page,
@@ -1207,6 +1628,7 @@ class GraphDAO:
                 streets: $streets, roads_total: $roads_total,
                 route_coords_json: $route_coords_json, params_json: $params_json,
                 created_at: datetime(),
+                updated_at: datetime(),
                 started_at: $started_at, finished_at: $finished_at
             })
             """,
@@ -1223,10 +1645,15 @@ class GraphDAO:
         )
 
     async def update_simulation(self, sim_id: str, updates: dict) -> None:
-        set_clauses = ", ".join(f"s.{k} = ${k}" for k in updates)
+        set_parts = []
+        params = {"id": sim_id}
+        for k, v in updates.items():
+            set_parts.append(f"s.{k} = ${k}")
+            params[k] = v
+        set_parts.append("s.updated_at = datetime()")
         await self.run_write(
-            f"MATCH (s:Simulation {{id: $id}}) SET {set_clauses}",
-            id=sim_id, **updates,
+            f"MATCH (s:Simulation {{id: $id}}) SET {', '.join(set_parts)}",
+            **params,
         )
 
     async def get_simulations(self, status: str | None = None, vehicles_min: int | None = None,
@@ -1254,8 +1681,9 @@ class GraphDAO:
                    coalesce(s.streets, []) AS streets,
                    s.roads_total AS roads_total,
                    s.created_at AS created_at,
+                   s.updated_at AS updated_at,
                    s.started_at AS started_at, s.finished_at AS finished_at
-            ORDER BY s.created_at DESC
+            ORDER BY s.updated_at DESC
             """,
             status=status, vehicles_min=vehicles_min, vehicles_max=vehicles_max,
             date_from=date_from, date_to=date_to,
@@ -1280,6 +1708,7 @@ class GraphDAO:
                    coalesce(s.streets, []) AS streets,
                    s.roads_total AS roads_total,
                    s.created_at AS created_at,
+                   s.updated_at AS updated_at,
                    s.started_at AS started_at, s.finished_at AS finished_at,
                    s.route_coords_json AS route_coords_json,
                    s.params_json AS params_json
@@ -1309,47 +1738,71 @@ class GraphDAO:
             CREATE (u:User {
                 id: $id, name: $name, password_hash: $password_hash,
                 role: $role,
-                created_at: datetime(), updated_at: datetime(), time_updated: datetime()
+                created_at: datetime(), updated_at: datetime()
             })
             """,
             id=user["id"], name=user["name"], password_hash=user["password_hash"],
             role=user.get("role", "operator"),
         )
 
-    async def get_users(self, name: str | None = None) -> list[dict]:
-        condition = ""
+    async def get_users(
+        self, name: str | None = None,
+        created_at_from: str | None = None, created_at_to: str | None = None,
+        updated_at_from: str | None = None, updated_at_to: str | None = None,
+        user_id: str | None = None, role: str | None = None,
+    ) -> list[dict]:
+        conditions = []
+        if user_id:
+            conditions.append("toLower(u.id) CONTAINS toLower($user_id)")
         if name:
-            condition = "WHERE toLower(u.name) CONTAINS toLower($name)"
+            conditions.append("toLower(u.name) CONTAINS toLower($name)")
+        if role:
+            conditions.append("u.role = $role")
+        if created_at_from:
+            conditions.append("u.created_at >= datetime($created_at_from)")
+        if created_at_to:
+            conditions.append("u.created_at <= datetime($created_at_to)")
+        if updated_at_from:
+            conditions.append("u.updated_at >= datetime($updated_at_from)")
+        if updated_at_to:
+            conditions.append("u.updated_at <= datetime($updated_at_to)")
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         return await self.run_query(
             f"""
             MATCH (u:User)
-            {condition}
+            {where}
             RETURN u.id AS id, u.name AS name, coalesce(u.role, 'operator') AS role,
                    u.created_at AS created_at,
-                   coalesce(u.time_updated, u.updated_at) AS time_updated,
-                   coalesce(u.updated_at, u.time_updated) AS updated_at
+                   u.updated_at AS updated_at
             ORDER BY u.created_at DESC
             """,
-            name=name,
+            name=name, user_id=user_id, role=role,
+            created_at_from=created_at_from, created_at_to=created_at_to,
+            updated_at_from=updated_at_from, updated_at_to=updated_at_to,
         )
 
     async def get_user_by_name(self, name: str) -> dict | None:
         rows = await self.run_query(
-            "MATCH (u:User {name: $name}) RETURN u.id AS id, u.name AS name, coalesce(u.role, 'operator') AS role, u.password_hash AS password_hash, u.created_at AS created_at, coalesce(u.time_updated, u.updated_at) AS time_updated, coalesce(u.updated_at, u.time_updated) AS updated_at",
+            "MATCH (u:User {name: $name}) "
+            "RETURN u.id AS id, u.name AS name, "
+            "coalesce(u.role, 'operator') AS role, u.password_hash AS password_hash, "
+            "u.created_at AS created_at, u.updated_at AS updated_at",
             name=name,
         )
         return rows[0] if rows else None
 
     async def get_user(self, user_id: str) -> dict | None:
         rows = await self.run_query(
-            "MATCH (u:User {id: $id}) RETURN u.id AS id, u.name AS name, coalesce(u.role, 'operator') AS role, u.created_at AS created_at, coalesce(u.time_updated, u.updated_at) AS time_updated, coalesce(u.updated_at, u.time_updated) AS updated_at",
+            "MATCH (u:User {id: $id}) "
+            "RETURN u.id AS id, u.name AS name, "
+            "coalesce(u.role, 'operator') AS role, "
+            "u.created_at AS created_at, u.updated_at AS updated_at",
             id=user_id,
         )
         return rows[0] if rows else None
 
     async def update_user(self, user_id: str, updates: dict) -> None:
         updates["updated_at"] = "datetime()"
-        updates["time_updated"] = "datetime()"
         set_parts = []
         params = {"id": user_id}
         for k, v in updates.items():

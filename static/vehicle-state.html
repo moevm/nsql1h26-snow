@@ -36,10 +36,16 @@
         </div>
         <div class="detail-card" style="margin-top:16px">
             <h3>История шагов</h3>
-            <table class="data-table" id="vs-history-table">
-                <thead><tr><th>Тик</th><th>Статус</th><th>Топливо</th><th>Снег</th><th>Дистанция</th><th>Шаг</th></tr></thead>
+            <div style="overflow-x:auto;width:100%">
+            <table class="data-table" id="vs-history-table" style="min-width:max-content">
+                <thead><tr>
+                    <th>Тик</th><th>Статус</th><th>Широта</th><th>Долгота</th><th>Топливо</th><th>Снег (м³)</th>
+                    <th>Текущая скорость</th><th>Ремонт остался (мин)</th>
+                    <th>Цель</th><th>Прогресс уборки (м)</th><th>Дистанция (км)</th><th>Шаг</th>
+                </tr></thead>
                 <tbody id="vs-history-tbody"></tbody>
             </table>
+            </div>
             <div id="vs-history-empty" class="empty-state" style="display:none">История отсутствует</div>
         </div>
     </div>

@@ -29,16 +29,20 @@ async def lifespan(application: FastAPI):
     await application.state.graph_dao.connect()
     await application.state.graph_dao.ensure_indexes()
 
-    from app.osm_download import download_osm_if_needed
-    await asyncio.to_thread(
-        download_osm_if_needed, settings.geojson_path, settings.pbf_url, settings.osm_bbox
-    )
+    if settings.import_json:
+        from app.seed import import_json
+        await import_json(application.state.graph_dao)
+    else:
+        from app.osm_download import download_osm_if_needed
+        await asyncio.to_thread(
+            download_osm_if_needed, settings.geojson_path, settings.pbf_url, settings.osm_bbox
+        )
 
-    from app.osm_import import import_osm_if_needed
-    await import_osm_if_needed(application.state.graph_dao, settings.geojson_path)
+        from app.osm_import import import_osm_if_needed
+        await import_osm_if_needed(application.state.graph_dao, settings.geojson_path)
 
-    from app.seed import seed_if_empty
-    await seed_if_empty(application.state.graph_dao)
+        from app.seed import seed_if_empty
+        await seed_if_empty(application.state.graph_dao)
 
     application.state.cache = CacheManager(settings.redis_url)
     await application.state.cache.connect()

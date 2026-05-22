@@ -5,23 +5,55 @@
 
     function getFilters() {
         return {
+            sim_id_filter: document.getElementById('f-sim-id').value.trim() || null,
             name: document.getElementById('f-name').value.trim() || null,
             status: document.getElementById('f-status').value || null,
             vehicles_min: document.getElementById('f-veh-min').value || null,
             vehicles_max: document.getElementById('f-veh-max').value || null,
-            date_from: document.getElementById('f-date-from').value ? document.getElementById('f-date-from').value + 'T00:00:00' : null,
-            date_to: document.getElementById('f-date-to').value ? document.getElementById('f-date-to').value + 'T23:59:59' : null,
+            date_from: document.getElementById('f-date-from').value || null,
+            date_to: document.getElementById('f-date-to').value || null,
+            updated_at_from: document.getElementById('f-upd-from').value || null,
+            updated_at_to: document.getElementById('f-upd-to').value || null,
+            vehicles_en_route_min: document.getElementById('f-en-route-min').value || null,
+            vehicles_en_route_max: document.getElementById('f-en-route-max').value || null,
+            vehicles_cleaning_min: document.getElementById('f-cleaning-min').value || null,
+            vehicles_cleaning_max: document.getElementById('f-cleaning-max').value || null,
+            vehicles_dumping_min: document.getElementById('f-dumping-min').value || null,
+            vehicles_dumping_max: document.getElementById('f-dumping-max').value || null,
+            vehicles_refueling_min: document.getElementById('f-refueling-min').value || null,
+            vehicles_refueling_max: document.getElementById('f-refueling-max').value || null,
+            vehicles_maintenance_min: document.getElementById('f-maintenance-min').value || null,
+            vehicles_maintenance_max: document.getElementById('f-maintenance-max').value || null,
+            snow_min: document.getElementById('f-snow-min').value || null,
+            snow_max: document.getElementById('f-snow-max').value || null,
+            fuel_min: document.getElementById('f-fuel-min').value || null,
+            fuel_max: document.getElementById('f-fuel-max').value || null,
+            avg_fuel_min: document.getElementById('f-avg-fuel-min').value || null,
+            avg_fuel_max: document.getElementById('f-avg-fuel-max').value || null,
+            avg_snow_min: document.getElementById('f-avg-snow-min').value || null,
+            avg_snow_max: document.getElementById('f-avg-snow-max').value || null,
+            roads_total_min: document.getElementById('f-roads-min').value || null,
+            roads_total_max: document.getElementById('f-roads-max').value || null,
+            speed_multiplier_min: document.getElementById('f-speed-mult-min').value || null,
+            speed_multiplier_max: document.getElementById('f-speed-mult-max').value || null,
+            tick_duration_min_min: document.getElementById('f-tick-dur-min').value || null,
+            tick_duration_min_max: document.getElementById('f-tick-dur-max').value || null,
+            snowfall_cm_min: document.getElementById('f-snowfall-min').value || null,
+            snowfall_cm_max: document.getElementById('f-snowfall-max').value || null,
+            refuel_threshold_min: document.getElementById('f-refuel-thr-min').value || null,
+            refuel_threshold_max: document.getElementById('f-refuel-thr-max').value || null,
+            dump_threshold_min: document.getElementById('f-dump-thr-min').value || null,
+            dump_threshold_max: document.getElementById('f-dump-thr-max').value || null,
+            snow_melt_rate_min: document.getElementById('f-melt-min').value || null,
+            snow_melt_rate_max: document.getElementById('f-melt-max').value || null,
         };
     }
 
     function buildQuery(f) {
         var p = ['page=' + currentPage, 'page_size=' + pageSize];
-        if (f.name) p.push('name=' + encodeURIComponent(f.name));
-        if (f.status) p.push('status=' + encodeURIComponent(f.status));
-        if (f.vehicles_min) p.push('vehicles_min=' + f.vehicles_min);
-        if (f.vehicles_max) p.push('vehicles_max=' + f.vehicles_max);
-        if (f.date_from) p.push('date_from=' + encodeURIComponent(f.date_from));
-        if (f.date_to) p.push('date_to=' + encodeURIComponent(f.date_to));
+        Object.keys(f).forEach(function(k) {
+            if (f[k] !== null && f[k] !== undefined && f[k] !== '') p.push(k + '=' + encodeURIComponent(f[k]));
+        });
         return '?' + p.join('&');
     }
 
@@ -58,6 +90,8 @@
         }
         table.style.display = ''; empty.style.display = 'none';
         tbody.innerHTML = sims.map(function (s) {
+            var params = {};
+            try { params = JSON.parse(s.params_json || '{}'); } catch(e) {}
             return '<tr onclick="window.location=\'/static/simulation.html?id=' + s.id + '\'" style="cursor:pointer">'
                 + '<td><a href="/static/simulation.html?id=' + s.id + '">' + s.id + '</a></td>'
                 + '<td>' + (s.name || '<span style="color:var(--text-dim)">—</span>') + '</td>'
@@ -66,8 +100,25 @@
                 + '<td>' + Math.round(s.elapsed_minutes || 0) + ' мин</td>'
                 + '<td>' + (s.roads_cleaned_pct || 0) + '%</td>'
                 + '<td>' + (s.vehicles_total || 0) + '</td>'
+                + '<td>' + (s.vehicles_en_route != null ? s.vehicles_en_route : '—') + '</td>'
+                + '<td>' + (s.vehicles_cleaning != null ? s.vehicles_cleaning : '—') + '</td>'
+                + '<td>' + (s.vehicles_dumping != null ? s.vehicles_dumping : '—') + '</td>'
+                + '<td>' + (s.vehicles_refueling != null ? s.vehicles_refueling : '—') + '</td>'
+                + '<td>' + (s.vehicles_maintenance != null ? s.vehicles_maintenance : '—') + '</td>'
+                + '<td>' + (s.snow_collected_m3 != null ? s.snow_collected_m3 : '—') + '</td>'
+                + '<td>' + (s.fuel_spent_l != null ? s.fuel_spent_l : '—') + '</td>'
+                + '<td>' + (s.avg_fuel_pct != null ? s.avg_fuel_pct : '—') + '</td>'
+                + '<td>' + (s.avg_snow_load_pct != null ? s.avg_snow_load_pct : '—') + '</td>'
+                + '<td>' + (s.roads_total != null ? s.roads_total : '—') + '</td>'
+                + '<td>' + (params.speed_multiplier != null ? params.speed_multiplier : '—') + '</td>'
+                + '<td>' + (params.tick_duration_min != null ? params.tick_duration_min : '—') + '</td>'
+                + '<td>' + (params.snowfall_cm != null ? params.snowfall_cm : '—') + '</td>'
+                + '<td>' + (params.refuel_threshold_pct != null ? params.refuel_threshold_pct : '—') + '</td>'
+                + '<td>' + (params.dump_threshold_pct != null ? params.dump_threshold_pct : '—') + '</td>'
+                + '<td>' + (params.snow_melt_rate_m3_per_tick != null ? params.snow_melt_rate_m3_per_tick : '—') + '</td>'
                 + '<td>' + (s.streets || []).length + '</td>'
                 + '<td>' + fmtDate(s.created_at) + '</td>'
+                + '<td>' + fmtDate(s.updated_at) + '</td>'
                 + '<td>' + fmtDate(s.started_at) + '</td>'
                 + '<td>' + fmtDate(s.finished_at) + '</td>'
                 + '<td onclick="event.stopPropagation()"><a class="btn-blue" style="padding:2px 8px;font-size:0.8rem;border-radius:6px;color:var(--bg);text-decoration:none;font-weight:600" href="/static/index.html?simulation_id=' + s.id + '">На карту</a></td>'
@@ -107,7 +158,16 @@
 
     document.getElementById('btn-filter').addEventListener('click', function () { currentPage = 1; loadSims(); });
     document.getElementById('btn-reset').addEventListener('click', function () {
-                ['f-name','f-status','f-veh-min','f-veh-max','f-date-from','f-date-to'].forEach(function(id){ var el=document.getElementById(id); if(el) el.tagName==='SELECT' ? el.selectedIndex=0 : (el.value=''); });
+        ['f-sim-id','f-name','f-status','f-veh-min','f-veh-max','f-date-from','f-date-to','f-upd-from','f-upd-to',
+         'f-en-route-min','f-en-route-max','f-cleaning-min','f-cleaning-max','f-dumping-min','f-dumping-max',
+         'f-refueling-min','f-refueling-max','f-maintenance-min','f-maintenance-max',
+         'f-snow-min','f-snow-max','f-fuel-min','f-fuel-max','f-avg-fuel-min','f-avg-fuel-max',
+         'f-avg-snow-min','f-avg-snow-max','f-roads-min','f-roads-max',
+         'f-speed-mult-min','f-speed-mult-max','f-tick-dur-min','f-tick-dur-max',
+         'f-snowfall-min','f-snowfall-max','f-refuel-thr-min','f-refuel-thr-max',
+         'f-dump-thr-min','f-dump-thr-max','f-melt-min','f-melt-max'].forEach(function(id){
+            var el=document.getElementById(id); if(el) el.tagName==='SELECT' ? el.selectedIndex=0 : (el.value='');
+        });
         currentPage = 1; loadSims();
     });
 
