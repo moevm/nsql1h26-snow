@@ -46,6 +46,18 @@
             dump_threshold_max: document.getElementById('f-dump-thr-max').value || null,
             snow_melt_rate_min: document.getElementById('f-melt-min').value || null,
             snow_melt_rate_max: document.getElementById('f-melt-max').value || null,
+            roads_cleaned_pct_min: document.getElementById('f-roads-cleaned-min').value || null,
+            roads_cleaned_pct_max: document.getElementById('f-roads-cleaned-max').value || null,
+            tick_min: document.getElementById('f-tick-min').value || null,
+            tick_max: document.getElementById('f-tick-max').value || null,
+            elapsed_minutes_min: document.getElementById('f-elapsed-min').value || null,
+            elapsed_minutes_max: document.getElementById('f-elapsed-max').value || null,
+            streets_count_min: document.getElementById('f-streets-count-min').value || null,
+            streets_count_max: document.getElementById('f-streets-count-max').value || null,
+            started_at_from: document.getElementById('f-started-from').value || null,
+            started_at_to: document.getElementById('f-started-to').value || null,
+            finished_at_from: document.getElementById('f-finished-from').value || null,
+            finished_at_to: document.getElementById('f-finished-to').value || null,
         };
     }
 
@@ -165,7 +177,10 @@
          'f-avg-snow-min','f-avg-snow-max','f-roads-min','f-roads-max',
          'f-speed-mult-min','f-speed-mult-max','f-tick-dur-min','f-tick-dur-max',
          'f-snowfall-min','f-snowfall-max','f-refuel-thr-min','f-refuel-thr-max',
-         'f-dump-thr-min','f-dump-thr-max','f-melt-min','f-melt-max'].forEach(function(id){
+         'f-dump-thr-min','f-dump-thr-max','f-melt-min','f-melt-max',
+         'f-roads-cleaned-min','f-roads-cleaned-max','f-tick-min','f-tick-max',
+         'f-elapsed-min','f-elapsed-max','f-streets-count-min','f-streets-count-max',
+         'f-started-from','f-started-to','f-finished-from','f-finished-to'].forEach(function(id){
             var el=document.getElementById(id); if(el) el.tagName==='SELECT' ? el.selectedIndex=0 : (el.value='');
         });
         currentPage = 1; loadSims();

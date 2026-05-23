@@ -677,6 +677,10 @@ class GraphDAO:
         avg_fuel_min: float | None = None, avg_fuel_max: float | None = None,
         avg_snow_min: float | None = None, avg_snow_max: float | None = None,
         step_own_id: str | None = None,
+        roads_cleaned_min: float | None = None, roads_cleaned_max: float | None = None,
+        snow_collected_min: float | None = None, snow_collected_max: float | None = None,
+        fuel_spent_min: float | None = None, fuel_spent_max: float | None = None,
+        breakdowns_min: int | None = None, breakdowns_max: int | None = None,
     ) -> dict:
         import math
         skip = (page - 1) * page_size
@@ -721,6 +725,22 @@ class GraphDAO:
             conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).avg_snow_load_pct, 0)) >= $avg_snow_min")
         if avg_snow_max is not None:
             conditions.append("toFloat(coalesce(apoc.convert.fromJsonMap(ss.sim_state).avg_snow_load_pct, 0)) <= $avg_snow_max")
+        if roads_cleaned_min is not None:
+            conditions.append("coalesce(ss.roads_cleaned, 0) >= $roads_cleaned_min")
+        if roads_cleaned_max is not None:
+            conditions.append("coalesce(ss.roads_cleaned, 0) <= $roads_cleaned_max")
+        if snow_collected_min is not None:
+            conditions.append("coalesce(ss.snow_collected, 0) >= $snow_collected_min")
+        if snow_collected_max is not None:
+            conditions.append("coalesce(ss.snow_collected, 0) <= $snow_collected_max")
+        if fuel_spent_min is not None:
+            conditions.append("coalesce(ss.fuel_spent, 0) >= $fuel_spent_min")
+        if fuel_spent_max is not None:
+            conditions.append("coalesce(ss.fuel_spent, 0) <= $fuel_spent_max")
+        if breakdowns_min is not None:
+            conditions.append("coalesce(ss.breakdowns, 0) >= $breakdowns_min")
+        if breakdowns_max is not None:
+            conditions.append("coalesce(ss.breakdowns, 0) <= $breakdowns_max")
         where = "WHERE " + " AND ".join(conditions)
         count_rows = await self.run_query(
             f"MATCH (ss:SimulationStep)-[:RUNTIME_STATS]->(s:Simulation) {where if conditions else ''} RETURN count(ss) AS total",
@@ -734,6 +754,10 @@ class GraphDAO:
             avg_fuel_min=avg_fuel_min, avg_fuel_max=avg_fuel_max,
             avg_snow_min=avg_snow_min, avg_snow_max=avg_snow_max,
             step_own_id=step_own_id,
+            roads_cleaned_min=roads_cleaned_min, roads_cleaned_max=roads_cleaned_max,
+            snow_collected_min=snow_collected_min, snow_collected_max=snow_collected_max,
+            fuel_spent_min=fuel_spent_min, fuel_spent_max=fuel_spent_max,
+            breakdowns_min=breakdowns_min, breakdowns_max=breakdowns_max,
         )
         total = count_rows[0]["total"] if count_rows else 0
         rows = await self.run_query(
@@ -761,6 +785,10 @@ class GraphDAO:
             avg_fuel_min=avg_fuel_min, avg_fuel_max=avg_fuel_max,
             avg_snow_min=avg_snow_min, avg_snow_max=avg_snow_max,
             step_own_id=step_own_id,
+            roads_cleaned_min=roads_cleaned_min, roads_cleaned_max=roads_cleaned_max,
+            snow_collected_min=snow_collected_min, snow_collected_max=snow_collected_max,
+            fuel_spent_min=fuel_spent_min, fuel_spent_max=fuel_spent_max,
+            breakdowns_min=breakdowns_min, breakdowns_max=breakdowns_max,
             skip=skip, page_size=page_size,
         )
         return {
@@ -1456,6 +1484,12 @@ class GraphDAO:
         dump_threshold_min: float | None = None, dump_threshold_max: float | None = None,
         snow_melt_rate_min: float | None = None, snow_melt_rate_max: float | None = None,
         sim_id_filter: str | None = None,
+        roads_cleaned_pct_min: float | None = None, roads_cleaned_pct_max: float | None = None,
+        tick_min: int | None = None, tick_max: int | None = None,
+        elapsed_minutes_min: float | None = None, elapsed_minutes_max: float | None = None,
+        streets_count_min: int | None = None, streets_count_max: int | None = None,
+        started_at_from: str | None = None, started_at_to: str | None = None,
+        finished_at_from: str | None = None, finished_at_to: str | None = None,
     ) -> dict:
         import math
         conditions = []
@@ -1541,6 +1575,30 @@ class GraphDAO:
             conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).snow_melt_rate_m3_per_tick, 0)) ELSE 0.0 END >= $snow_melt_rate_min")
         if snow_melt_rate_max is not None:
             conditions.append("CASE WHEN s.params_json IS NOT NULL THEN toFloat(coalesce(apoc.convert.fromJsonMap(s.params_json).snow_melt_rate_m3_per_tick, 0)) ELSE 0.0 END <= $snow_melt_rate_max")
+        if roads_cleaned_pct_min is not None:
+            conditions.append("coalesce(s.roads_cleaned_pct, 0) >= $roads_cleaned_pct_min")
+        if roads_cleaned_pct_max is not None:
+            conditions.append("coalesce(s.roads_cleaned_pct, 0) <= $roads_cleaned_pct_max")
+        if tick_min is not None:
+            conditions.append("coalesce(s.tick, 0) >= $tick_min")
+        if tick_max is not None:
+            conditions.append("coalesce(s.tick, 0) <= $tick_max")
+        if elapsed_minutes_min is not None:
+            conditions.append("coalesce(s.elapsed_minutes, 0) >= $elapsed_minutes_min")
+        if elapsed_minutes_max is not None:
+            conditions.append("coalesce(s.elapsed_minutes, 0) <= $elapsed_minutes_max")
+        if streets_count_min is not None:
+            conditions.append("size(coalesce(s.streets, [])) >= $streets_count_min")
+        if streets_count_max is not None:
+            conditions.append("size(coalesce(s.streets, [])) <= $streets_count_max")
+        if started_at_from:
+            conditions.append("s.started_at >= datetime($started_at_from)")
+        if started_at_to:
+            conditions.append("s.started_at <= datetime($started_at_to)")
+        if finished_at_from:
+            conditions.append("s.finished_at >= datetime($finished_at_from)")
+        if finished_at_to:
+            conditions.append("s.finished_at <= datetime($finished_at_to)")
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         skip = (page - 1) * page_size
         count_rows = await self.run_query(
@@ -1565,6 +1623,12 @@ class GraphDAO:
             dump_threshold_min=dump_threshold_min, dump_threshold_max=dump_threshold_max,
             snow_melt_rate_min=snow_melt_rate_min, snow_melt_rate_max=snow_melt_rate_max,
             sim_id_filter=sim_id_filter,
+            roads_cleaned_pct_min=roads_cleaned_pct_min, roads_cleaned_pct_max=roads_cleaned_pct_max,
+            tick_min=tick_min, tick_max=tick_max,
+            elapsed_minutes_min=elapsed_minutes_min, elapsed_minutes_max=elapsed_minutes_max,
+            streets_count_min=streets_count_min, streets_count_max=streets_count_max,
+            started_at_from=started_at_from, started_at_to=started_at_to,
+            finished_at_from=finished_at_from, finished_at_to=finished_at_to,
         )
         total = count_rows[0]["total"] if count_rows else 0
         rows = await self.run_query(
@@ -1609,6 +1673,12 @@ class GraphDAO:
             dump_threshold_min=dump_threshold_min, dump_threshold_max=dump_threshold_max,
             snow_melt_rate_min=snow_melt_rate_min, snow_melt_rate_max=snow_melt_rate_max,
             sim_id_filter=sim_id_filter,
+            roads_cleaned_pct_min=roads_cleaned_pct_min, roads_cleaned_pct_max=roads_cleaned_pct_max,
+            tick_min=tick_min, tick_max=tick_max,
+            elapsed_minutes_min=elapsed_minutes_min, elapsed_minutes_max=elapsed_minutes_max,
+            streets_count_min=streets_count_min, streets_count_max=streets_count_max,
+            started_at_from=started_at_from, started_at_to=started_at_to,
+            finished_at_from=finished_at_from, finished_at_to=finished_at_to,
             skip=skip, page_size=page_size,
         )
         return {

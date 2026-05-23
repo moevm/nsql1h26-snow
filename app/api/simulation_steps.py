@@ -31,6 +31,14 @@ async def list_steps(
     avg_snow_min: float | None = None,
     avg_snow_max: float | None = None,
     step_own_id: str | None = None,
+    roads_cleaned_min: float | None = None,
+    roads_cleaned_max: float | None = None,
+    snow_collected_min: float | None = None,
+    snow_collected_max: float | None = None,
+    fuel_spent_min: float | None = None,
+    fuel_spent_max: float | None = None,
+    breakdowns_min: int | None = None,
+    breakdowns_max: int | None = None,
     user: str = Depends(get_current_user),
 ):
     graph = request.app.state.graph_dao
@@ -46,6 +54,10 @@ async def list_steps(
         avg_fuel_min=avg_fuel_min, avg_fuel_max=avg_fuel_max,
         avg_snow_min=avg_snow_min, avg_snow_max=avg_snow_max,
         step_own_id=step_own_id,
+        roads_cleaned_min=roads_cleaned_min, roads_cleaned_max=roads_cleaned_max,
+        snow_collected_min=snow_collected_min, snow_collected_max=snow_collected_max,
+        fuel_spent_min=fuel_spent_min, fuel_spent_max=fuel_spent_max,
+        breakdowns_min=breakdowns_min, breakdowns_max=breakdowns_max,
     )
 
 @router.get("/{step_id}")

@@ -465,6 +465,18 @@ async def list_simulations(
     snow_melt_rate_min: float | None = None,
     snow_melt_rate_max: float | None = None,
     sim_id_filter: str | None = None,
+    roads_cleaned_pct_min: float | None = None,
+    roads_cleaned_pct_max: float | None = None,
+    tick_min: int | None = None,
+    tick_max: int | None = None,
+    elapsed_minutes_min: float | None = None,
+    elapsed_minutes_max: float | None = None,
+    streets_count_min: int | None = None,
+    streets_count_max: int | None = None,
+    started_at_from: str | None = None,
+    started_at_to: str | None = None,
+    finished_at_from: str | None = None,
+    finished_at_to: str | None = None,
     page: int = 1,
     page_size: int = 20,
     user: str = Depends(get_current_user),
@@ -492,6 +504,12 @@ async def list_simulations(
         dump_threshold_min=dump_threshold_min, dump_threshold_max=dump_threshold_max,
         snow_melt_rate_min=snow_melt_rate_min, snow_melt_rate_max=snow_melt_rate_max,
         sim_id_filter=sim_id_filter,
+        roads_cleaned_pct_min=roads_cleaned_pct_min, roads_cleaned_pct_max=roads_cleaned_pct_max,
+        tick_min=tick_min, tick_max=tick_max,
+        elapsed_minutes_min=elapsed_minutes_min, elapsed_minutes_max=elapsed_minutes_max,
+        streets_count_min=streets_count_min, streets_count_max=streets_count_max,
+        started_at_from=started_at_from, started_at_to=started_at_to,
+        finished_at_from=finished_at_from, finished_at_to=finished_at_to,
     )
     items = result["items"]
     for engine in _simulations.values():
@@ -533,6 +551,38 @@ async def list_simulations(
             ts = _parse(updated_at_to)
             upd = s.updated_at or s.created_at
             if ts and upd and upd.replace(tzinfo=None) > ts.replace(tzinfo=None):
+                continue
+        if roads_cleaned_pct_min is not None and (s.roads_cleaned_pct or 0) < roads_cleaned_pct_min:
+            continue
+        if roads_cleaned_pct_max is not None and (s.roads_cleaned_pct or 0) > roads_cleaned_pct_max:
+            continue
+        if tick_min is not None and (s.tick or 0) < tick_min:
+            continue
+        if tick_max is not None and (s.tick or 0) > tick_max:
+            continue
+        if elapsed_minutes_min is not None and (s.elapsed_minutes or 0) < elapsed_minutes_min:
+            continue
+        if elapsed_minutes_max is not None and (s.elapsed_minutes or 0) > elapsed_minutes_max:
+            continue
+        if streets_count_min is not None and len(s.streets or []) < streets_count_min:
+            continue
+        if streets_count_max is not None and len(s.streets or []) > streets_count_max:
+            continue
+        if started_at_from:
+            ts = _parse(started_at_from)
+            if ts and s.started_at and s.started_at.replace(tzinfo=None) < ts.replace(tzinfo=None):
+                continue
+        if started_at_to:
+            ts = _parse(started_at_to)
+            if ts and s.started_at and s.started_at.replace(tzinfo=None) > ts.replace(tzinfo=None):
+                continue
+        if finished_at_from:
+            ts = _parse(finished_at_from)
+            if ts and s.finished_at and s.finished_at.replace(tzinfo=None) < ts.replace(tzinfo=None):
+                continue
+        if finished_at_to:
+            ts = _parse(finished_at_to)
+            if ts and s.finished_at and s.finished_at.replace(tzinfo=None) > ts.replace(tzinfo=None):
                 continue
         items.insert(0, s.model_dump())
         result["total"] = result.get("total", 0) + 1

@@ -39,6 +39,10 @@
                 <label>до: <input id="f-date-to" type="datetime-local" /></label>
                 <label>Изменён от: <input id="f-upd-from" type="datetime-local" /></label>
                 <label>до: <input id="f-upd-to" type="datetime-local" /></label>
+                <label>Начало от: <input id="f-started-from" type="datetime-local" /></label>
+                <label>до: <input id="f-started-to" type="datetime-local" /></label>
+                <label>Конец от: <input id="f-finished-from" type="datetime-local" /></label>
+                <label>до: <input id="f-finished-to" type="datetime-local" /></label>
             </div>
             <div class="filter-row">
                 <label>Едут от: <input id="f-en-route-min" type="number" /></label>
@@ -83,6 +87,16 @@
             <div class="filter-row">
                 <label>Скорость снегоплавильни (м³/тик) от: <input id="f-melt-min" type="number" step="0.01"  /></label>
                 <label>до: <input id="f-melt-max" type="number" step="0.01"  /></label>
+            </div>
+            <div class="filter-row">
+                <label>% убрано от: <input id="f-roads-cleaned-min" type="number" step="0.1" /></label>
+                <label>до: <input id="f-roads-cleaned-max" type="number" step="0.1"  /></label>
+                <label>Тик от: <input id="f-tick-min" type="number"  /></label>
+                <label>до: <input id="f-tick-max" type="number" /></label>
+                <label>Время (мин) от: <input id="f-elapsed-min" type="number" step="0.1" /></label>
+                <label>до: <input id="f-elapsed-max" type="number" step="0.1" /></label>
+                <label>Улиц от: <input id="f-streets-count-min" type="number" /></label>
+                <label>до: <input id="f-streets-count-max" type="number" /></label>
             </div>
             <div class="filter-row">
                 <button id="btn-filter" class="btn-blue">Применить фильтр</button>
