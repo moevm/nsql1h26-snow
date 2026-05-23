@@ -49,6 +49,22 @@
         if (avgFuelMax) params.push('avg_fuel_max=' + avgFuelMax);
         if (avgSnowMin) params.push('avg_snow_min=' + avgSnowMin);
         if (avgSnowMax) params.push('avg_snow_max=' + avgSnowMax);
+        var roadsCleanedMin = document.getElementById('f-roads-cleaned-min').value;
+        var roadsCleanedMax = document.getElementById('f-roads-cleaned-max').value;
+        var snowCollectedMin = document.getElementById('f-snow-collected-min').value;
+        var snowCollectedMax = document.getElementById('f-snow-collected-max').value;
+        var fuelSpentMin = document.getElementById('f-fuel-spent-min').value;
+        var fuelSpentMax = document.getElementById('f-fuel-spent-max').value;
+        if (roadsCleanedMin) params.push('roads_cleaned_min=' + roadsCleanedMin);
+        if (roadsCleanedMax) params.push('roads_cleaned_max=' + roadsCleanedMax);
+        if (snowCollectedMin) params.push('snow_collected_min=' + snowCollectedMin);
+        if (snowCollectedMax) params.push('snow_collected_max=' + snowCollectedMax);
+        if (fuelSpentMin) params.push('fuel_spent_min=' + fuelSpentMin);
+        if (fuelSpentMax) params.push('fuel_spent_max=' + fuelSpentMax);
+        var breakdownsMin = document.getElementById('f-breakdowns-min').value;
+        var breakdownsMax = document.getElementById('f-breakdowns-max').value;
+        if (breakdownsMin) params.push('breakdowns_min=' + breakdownsMin);
+        if (breakdownsMax) params.push('breakdowns_max=' + breakdownsMax);
         AuthModule.apiFetch('/api/simulation-steps/?' + params.join('&'))
             .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(function(d) {
@@ -114,8 +130,10 @@
     document.getElementById('btn-reset').addEventListener('click', function() {
         ['f-step-own-id','f-sim-id','f-tick-min','f-tick-max','f-created-from','f-created-to','f-upd-from','f-upd-to',
          'f-en-route-min','f-en-route-max','f-cleaning-min','f-cleaning-max','f-dumping-min','f-dumping-max',
-         'f-maintenance-min','f-maintenance-max','f-avg-fuel-min','f-avg-fuel-max','f-avg-snow-min','f-avg-snow-max'].forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ''; });
-        currentPage = 1; load();
+         'f-maintenance-min','f-maintenance-max','f-avg-fuel-min','f-avg-fuel-max','f-avg-snow-min','f-avg-snow-max',
+         'f-roads-cleaned-min','f-roads-cleaned-max','f-snow-collected-min','f-snow-collected-max',
+         'f-fuel-spent-min','f-fuel-spent-max','f-breakdowns-min','f-breakdowns-max'].forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ''; });
+          currentPage = 1; load();
     });
 
     var urlParams = new URLSearchParams(window.location.search);
