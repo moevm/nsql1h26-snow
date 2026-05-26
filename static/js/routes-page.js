@@ -131,4 +131,26 @@
 
     if (AuthModule.getToken()) loadRoutes();
     window.addEventListener('pageshow', function (e) { if (e.persisted && AuthModule.getToken()) loadRoutes(); });
+
+    TableStatsModule.init({
+        endpoint: '/api/routes-crud/',
+        getFilters: getFilters,
+        extractItems: function (r) { return r.items || []; },
+        getValue: function (it, key) {
+            if (key === 'streets_count') return (it.streets || []).length;
+            if (key === 'path_nodes_count') return it.path_nodes_count != null ? it.path_nodes_count : (it.path_nodes ? it.path_nodes.length : 0);
+            return it[key];
+        },
+        attributes: [
+            { key: 'distance_m', label: 'Дистанция (м)', type: 'numeric' },
+            { key: 'streets_count', label: 'Улиц', type: 'numeric' },
+            { key: 'path_nodes_count', label: 'Узлов', type: 'numeric' },
+            { key: 'created_at', label: 'Создан', type: 'date' },
+            { key: 'updated_at', label: 'Изменён', type: 'date' },
+            { key: 'started_at', label: 'Начало работ', type: 'date' },
+            { key: 'finished_at', label: 'Конец работ', type: 'date' },
+            { key: 'label', label: 'Название', type: 'categorical' },
+            { key: 'id', label: 'ID', type: 'categorical' },
+        ],
+    });
 })();

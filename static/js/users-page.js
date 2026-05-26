@@ -117,4 +117,19 @@
     function showLoading(s) { var e = document.getElementById('loading'); if (e) e.style.display = s ? '' : 'none'; }
 
     if (AuthModule.getToken()) loadUsers();
+
+    TableStatsModule.init({
+        endpoint: '/api/users/',
+        paginated: true,
+        buildQuery: buildQuery,
+        stripPagination: true,
+        extractItems: function (r) { return r.items || []; },
+        attributes: [
+            { key: 'role', label: 'Роль', type: 'categorical' },
+            { key: 'created_at', label: 'Создан', type: 'date' },
+            { key: 'updated_at', label: 'Изменён', type: 'date' },
+            { key: 'id', label: 'ID', type: 'categorical' },
+            { key: 'name', label: 'Имя', type: 'categorical' },
+        ],
+    });
 })();

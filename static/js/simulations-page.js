@@ -187,4 +187,47 @@
     });
 
     if (AuthModule.getToken()) loadSims();
+
+    TableStatsModule.init({
+        endpoint: '/api/simulation/',
+        getFilters: getFilters,
+        extractItems: function (r) { return r.items || []; },
+        getValue: function (it, key) {
+            if (key === 'streets_count') return (it.streets || []).length;
+            if (key.indexOf('params.') === 0) {
+                try { return JSON.parse(it.params_json || '{}')[key.slice(7)]; } catch (e) { return undefined; }
+            }
+            return it[key];
+        },
+        attributes: [
+            { key: 'status', label: 'Статус', type: 'categorical' },
+            { key: 'tick', label: 'Тик', type: 'numeric' },
+            { key: 'roads_cleaned_pct', label: 'Убрано (%)', type: 'numeric' },
+            { key: 'streets_count', label: 'Улиц', type: 'numeric' },
+            { key: 'vehicles_total', label: 'Техника', type: 'numeric' },
+            { key: 'vehicles_en_route', label: 'Едут', type: 'numeric' },
+            { key: 'vehicles_cleaning', label: 'Чистят', type: 'numeric' },
+            { key: 'vehicles_dumping', label: 'Сброс снега', type: 'numeric' },
+            { key: 'vehicles_refueling', label: 'Заправка', type: 'numeric' },
+            { key: 'vehicles_maintenance', label: 'Техобслуж.', type: 'numeric' },
+            { key: 'snow_collected_m3', label: 'Снег (м³)', type: 'numeric' },
+            { key: 'fuel_spent_l', label: 'Топливо (л)', type: 'numeric' },
+            { key: 'avg_fuel_pct', label: 'Ср. топл. %', type: 'numeric' },
+            { key: 'avg_snow_load_pct', label: 'Ср. снег %', type: 'numeric' },
+            { key: 'roads_total', label: 'Дорог', type: 'numeric' },
+            { key: 'elapsed_minutes', label: 'Время (мин)', type: 'numeric' },
+            { key: 'params.speed_multiplier', label: 'Ускорение', type: 'numeric' },
+            { key: 'params.tick_duration_min', label: 'Длина тика', type: 'numeric' },
+            { key: 'params.snowfall_cm', label: 'Снегопад (см)', type: 'numeric' },
+            { key: 'params.refuel_threshold_pct', label: 'Порог заправки %', type: 'numeric' },
+            { key: 'params.dump_threshold_pct', label: 'Порог сброса %', type: 'numeric' },
+            { key: 'params.snow_melt_rate_m3_per_tick', label: 'Скор. плавильни', type: 'numeric' },
+            { key: 'created_at', label: 'Создан', type: 'date' },
+            { key: 'updated_at', label: 'Изменен', type: 'date' },
+            { key: 'started_at', label: 'Начало', type: 'date' },
+            { key: 'finished_at', label: 'Конец', type: 'date' },
+            { key: 'id', label: 'ID', type: 'categorical' },
+            { key: 'name', label: 'Навзание', type: 'categorical' },
+        ],
+    });
 })();
