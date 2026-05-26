@@ -962,8 +962,19 @@ class GraphDAO:
         )
         return rows[0] if rows else None
 
-    async def get_vehicle_history(self, machine_id: str) -> list[dict]:
-        return await self.run_query(
+    async def get_vehicle_history(self, machine_id: str, page: int = 1, page_size: int = 20) -> dict:
+        import math
+        skip = (page - 1) * page_size
+        count_rows = await self.run_query(
+            """
+            MATCH (vs:VehicleState)-[:VEHICLE_DETAILS]->(ss:SimulationStep)
+            WHERE coalesce(vs.machine_id, vs.id) = $id
+            RETURN count(vs) AS total
+            """,
+            id=machine_id,
+        )
+        total = count_rows[0]["total"] if count_rows else 0
+        rows = await self.run_query(
             """
             MATCH (vs:VehicleState)-[vd:VEHICLE_DETAILS]->(ss:SimulationStep)-[:RUNTIME_STATS]->(sim:Simulation)
             WHERE coalesce(vs.machine_id, vs.id) = $id
@@ -990,9 +1001,14 @@ class GraphDAO:
                    vd.index AS vehicle_index, ss.id AS step_id, ss.tick AS tick,
                    sim.id AS simulation_id
             ORDER BY ss.tick DESC
+            SKIP $skip LIMIT $page_size
             """,
-            id=machine_id,
+            id=machine_id, skip=skip, page_size=page_size,
         )
+        return {
+            "items": rows, "total": total, "page": page,
+            "page_size": page_size, "total_pages": math.ceil(total / page_size) if total else 1,
+        }
 
     async def update_vehicle_state(self, vs_id: str, updates: dict) -> None:
         allowed = {
@@ -1530,23 +1546,38 @@ class GraphDAO:
         created_at_from: str | None = None, created_at_to: str | None = None,
         updated_at_from: str | None = None, updated_at_to: str | None = None,
         user_id: str | None = None, role: str | None = None,
-    ) -> list[dict]:
+        page: int = 1, page_size: int = 20,
+    ) -> dict:
+        import math
         where, params = build_filters([
-            ("toLower(u.id) CONTAINS toLower($user_id)",    "user_id",         user_id),
-            ("toLower(u.name) CONTAINS toLower($name)",     "name",            name),
-            ("u.role = $role",                              "role",            role),
-            ("u.created_at >= datetime($created_at_from)",  "created_at_from", created_at_from),
-        return await self.run_query(
+            ("toLower(u.id) CONTAINS toLower($user_id)",     "user_id",          user_id),
+            ("toLower(u.name) CONTAINS toLower($name)",      "name",             name),
+            ("u.role = $role",                               "role",             role),
+            ("u.created_at >= datetime($created_at_from)",   "created_at_from",  created_at_from),
+            ("u.created_at <= datetime($created_at_to)",     "created_at_to",    created_at_to),
+            ("u.updated_at >= datetime($updated_at_from)",   "updated_at_from",  updated_at_from),
+            ("u.updated_at <= datetime($updated_at_to)",     "updated_at_to",    updated_at_to),
+        ])
+        skip = (page - 1) * page_size
+        count_rows = await self.run_query(
+            f"MATCH (u:User) {where} RETURN count(u) AS total", **params
+        )
+        total = count_rows[0]["total"] if count_rows else 0
+        rows = await self.run_query(
             f"""
             MATCH (u:User)
             {where}
             RETURN u.id AS id, u.name AS name, coalesce(u.role, 'operator') AS role,
-                   u.created_at AS created_at,
-                   u.updated_at AS updated_at
+                   u.created_at AS created_at, u.updated_at AS updated_at
             ORDER BY u.created_at DESC
+            SKIP $skip LIMIT $page_size
             """,
-            **params,
+            skip=skip, page_size=page_size, **params,
         )
+        return {
+            "items": rows, "total": total, "page": page,
+            "page_size": page_size, "total_pages": math.ceil(total / page_size) if total else 1,
+        }
 
     async def get_user_by_name(self, name: str) -> dict | None:
         rows = await self.run_query(

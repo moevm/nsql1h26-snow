@@ -20,6 +20,8 @@ async def list_users(
     updated_at_to: str | None = None,
     user_id: str | None = None,
     role: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
     user: str = Depends(get_current_user),
 ):
     graph = request.app.state.graph_dao
@@ -28,6 +30,7 @@ async def list_users(
         created_at_from=created_at_from, created_at_to=created_at_to,
         updated_at_from=updated_at_from, updated_at_to=updated_at_to,
         user_id=user_id, role=role,
+        page=page, page_size=page_size,
     )
 
 @router.post("/", status_code=201)

@@ -91,9 +91,13 @@ async def get_vehicle_state(request: Request, vs_id: str, user: str = Depends(ge
     return row
 
 @router.get("/{vs_id}/history")
-async def get_vehicle_history(request: Request, vs_id: str, user: str = Depends(get_current_user)):
+async def get_vehicle_history(
+    request: Request, vs_id: str,
+    page: int = 1, page_size: int = 20,
+    user: str = Depends(get_current_user),
+):
     graph = request.app.state.graph_dao
-    return await graph.get_vehicle_history(vs_id)
+    return await graph.get_vehicle_history(vs_id, page=page, page_size=page_size)
 
 @router.patch("/{vs_id}")
 async def update_vehicle_state(request: Request, vs_id: str, body: dict, user: str = Depends(get_current_user)):
