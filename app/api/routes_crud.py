@@ -196,9 +196,13 @@ async def get_route_points(
     return await graph.get_route_points_paged(route_id, page=page, page_size=page_size)
 
 @router.get("/{route_id}/waypoints")
-async def get_route_waypoints(request: Request, route_id: str, user: str = Depends(get_current_user)):
+async def get_route_waypoints(
+    request: Request, route_id: str,
+    page: int = 1, page_size: int = 20,
+    user: str = Depends(get_current_user),
+):
     graph = request.app.state.graph_dao
-    return await graph.get_route_waypoints(route_id)
+    return await graph.get_route_waypoints_paged(route_id, page=page, page_size=page_size)
 
 @router.post("/{route_id}/waypoint", status_code=201)
 @limiter.limit("30/minute")

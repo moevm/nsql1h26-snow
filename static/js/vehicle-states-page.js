@@ -3,6 +3,11 @@
     var pageSize = 20;
     var totalPages = 1;
 
+    var paginator = PaginationModule.create('pagination', {
+        onPageChange: function (p) { currentPage = p; load(); },
+        onPageSizeChange: function (s) { pageSize = s; currentPage = 1; load(); },
+    });
+
     function buildQuery() {
         var p = ['page=' + currentPage, 'page_size=' + pageSize];
         var simId = document.getElementById('f-sim-id').value.trim();
@@ -98,7 +103,7 @@
             .then(function(d) {
                 totalPages = d.total_pages || 1;
                 renderTable(d.items, d.total);
-                renderPagination(totalPages);
+                paginator.render(currentPage, totalPages, d.total, pageSize);
                 showLoading(false);
             })
             .catch(function() { showLoading(false); });
@@ -153,17 +158,6 @@
                 + '</tr>';
         }).join('');
     }
-
-    function renderPagination(pages) {
-        var el = document.getElementById('pagination');
-        if (!el || pages <= 1) { if (el) el.innerHTML = ''; return; }
-        var html = '<button onclick="changePage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>&laquo;</button>'
-            + '<span class="pagination-info">Стр. ' + currentPage + ' / ' + pages + '</span>'
-            + '<button onclick="changePage(' + (currentPage + 1) + ')"' + (currentPage >= pages ? ' disabled' : '') + '>&raquo;</button>';
-        el.innerHTML = html;
-    }
-
-    window.changePage = function(p) { if (p < 1 || p > totalPages) return; currentPage = p; load(); };
 
     function fmtDate(d) { if (!d) return '—'; return new Date(d).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }); }
     function showLoading(s) { var e = document.getElementById('loading'); if (e) e.style.display = s ? '' : 'none'; }

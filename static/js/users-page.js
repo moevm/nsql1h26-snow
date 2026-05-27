@@ -3,6 +3,11 @@
     var pageSize = 20;
     var totalPages = 1;
 
+    var paginator = PaginationModule.create('pagination', {
+        onPageChange: function (p) { currentPage = p; loadUsers(); },
+        onPageSizeChange: function (s) { pageSize = s; currentPage = 1; loadUsers(); },
+    });
+
     function buildQuery() {
         var p = ['page=' + currentPage, 'page_size=' + pageSize];
         var userId = document.getElementById('f-id').value.trim();
@@ -30,26 +35,11 @@
             .then(function (data) {
                 totalPages = data.total_pages || 1;
                 render(data.items, data.total);
-                renderPagination(totalPages);
+                paginator.render(currentPage, totalPages, data.total, pageSize);
                 showLoading(false);
             })
             .catch(function () { showLoading(false); });
     }
-
-    function renderPagination(pages) {
-        var el = document.getElementById('pagination');
-        if (!el || pages <= 1) { if (el) el.innerHTML = ''; return; }
-        var html = '<button onclick="changePage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>&laquo;</button>';
-        var start = Math.max(1, currentPage - 2), end = Math.min(pages, currentPage + 2);
-        for (var i = start; i <= end; i++) {
-            html += '<button onclick="changePage(' + i + ')"' + (i === currentPage ? ' class="active"' : '') + '>' + i + '</button>';
-        }
-        html += '<button onclick="changePage(' + (currentPage + 1) + ')"' + (currentPage >= pages ? ' disabled' : '') + '>&raquo;</button>';
-        html += '<span class="pagination-info">Стр. ' + currentPage + ' / ' + pages + '</span>';
-        el.innerHTML = html;
-    }
-
-    window.changePage = function (p) { if (p < 1 || p > totalPages) return; currentPage = p; loadUsers(); };
 
     function render(users, total) {
         var tbody = document.getElementById('users-tbody');

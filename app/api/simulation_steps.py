@@ -69,9 +69,13 @@ async def get_step(request: Request, step_id: str, user: str = Depends(get_curre
     return row
 
 @router.get("/{step_id}/vehicles")
-async def get_step_vehicles(request: Request, step_id: str, user: str = Depends(get_current_user)):
+async def get_step_vehicles(
+    request: Request, step_id: str,
+    page: int = 1, page_size: int = 20,
+    user: str = Depends(get_current_user),
+):
     graph = request.app.state.graph_dao
-    return await graph.get_step_vehicle_states(step_id)
+    return await graph.get_step_vehicle_states_paged(step_id, page=page, page_size=page_size)
 
 @router.patch("/{step_id}")
 async def update_step(request: Request, step_id: str, body: dict, user: str = Depends(get_current_user)):

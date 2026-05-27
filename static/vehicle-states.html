@@ -90,6 +90,7 @@
                 <span id="result-count" style="color:var(--text-dim);font-size:0.85rem;"></span>
             </div>
         </div>
+        <div id="pagination" class="pagination"></div>
         <div id="loading" class="loading-indicator" style="display:none">Загрузка...</div>
         <div id="vs-table-wrapper" style="overflow-x:auto;width:100%">
         <table class="data-table" id="vs-table" style="display:none;min-width:max-content">
@@ -104,12 +105,12 @@
             <tbody id="vs-tbody"></tbody>
         </table>
         </div>
-        <div class="pagination" id="pagination"></div>
         <div id="empty-state" class="empty-state" style="display:none">Состояния не найдены</div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="/static/js/auth.js"></script>
     <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/pagination.js"></script>
     <script src="/static/js/table-stats.js"></script>
     <script src="/static/js/vehicle-states-page.js"></script>
 </body>
