@@ -187,4 +187,37 @@
     var simParam = urlParams.get('sim_id');
     if (simParam) document.getElementById('f-sim-id').value = simParam;
     if (AuthModule.getToken()) load();
+
+    TableStatsModule.init({
+        endpoint: '/api/vehicle-states/',
+        paginated: true,
+        buildQuery: buildQuery,
+        stripPagination: true,
+        extractItems: function (r) { return r.items || []; },
+        attributes: [
+            { key: 'status', label: 'Статус', type: 'categorical' },
+            { key: 'lat', label: 'Широта', type: 'numeric' },
+            { key: 'lng', label: 'Долгота', type: 'numeric' },
+            { key: 'fuel_level', label: 'Топливо', type: 'numeric' },
+            { key: 'snow_loaded_m3', label: 'Снег (м³)', type: 'numeric' },
+            { key: 'distance_travelled_km', label: 'Дистанция (км)', type: 'numeric' },
+            { key: 'speed_kmh', label: 'Скорость', type: 'numeric' },
+            { key: 'travel_speed_kmh', label: 'Скор. езды', type: 'numeric' },
+            { key: 'cleaning_speed_kmh', label: 'Скор. чистки', type: 'numeric' },
+            { key: 'fuel_capacity_l', label: 'Бак (л)', type: 'numeric' },
+            { key: 'snow_capacity_m3', label: 'Ёмк. снег (м³)', type: 'numeric' },
+            { key: 'breakdown_probability', label: 'Поломка %', type: 'numeric' },
+            { key: 'repair_remaining_min', label: 'Ремонт (мин)', type: 'numeric' },
+            { key: 'progress_m', label: 'Прогресс (м)', type: 'numeric' },
+            { key: 'tick', label: 'Тик', type: 'numeric' },
+            { key: 'target_id', label: 'Цель ID', type: 'categorical' },
+            { key: 'target_type', label: 'Цель тип', type: 'categorical' },
+            { key: 'simulation_id', label: 'ID Симуляции', type: 'categorical' },
+            { key: 'step_id', label: 'ID Шага', type: 'categorical' },
+            { key: 'created_at', label: 'Создан', type: 'date' },
+            { key: 'updated_at', label: 'Изменен', type: 'date' },
+            { key: 'vehicle_type', label: 'Тип', type: 'categorical' },
+            { key: 'id', label: 'ID', type: 'categorical' },
+        ],
+    });
 })();

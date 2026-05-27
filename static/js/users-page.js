@@ -1,6 +1,10 @@
 (function () {
+    var currentPage = 1;
+    var pageSize = 20;
+    var totalPages = 1;
+
     function buildQuery() {
-        var p = [];
+        var p = ['page=' + currentPage, 'page_size=' + pageSize];
         var userId = document.getElementById('f-id').value.trim();
         var name = document.getElementById('f-name').value.trim();
         var role = document.getElementById('f-role').value;
@@ -15,26 +19,45 @@
         if (createdTo) p.push('created_at_to=' + encodeURIComponent(createdTo));
         if (updFrom) p.push('updated_at_from=' + encodeURIComponent(updFrom));
         if (updTo) p.push('updated_at_to=' + encodeURIComponent(updTo));
-        return p.length ? '?' + p.join('&') : '';
+        return '?' + p.join('&');
     }
 
     function loadUsers() {
         if (!AuthModule.getToken()) return;
         showLoading(true);
-        var url = '/api/users/' + buildQuery();
-        AuthModule.apiFetch(url)
+        AuthModule.apiFetch('/api/users/' + buildQuery())
             .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-            .then(function (data) { render(data); showLoading(false); })
+            .then(function (data) {
+                totalPages = data.total_pages || 1;
+                render(data.items, data.total);
+                renderPagination(totalPages);
+                showLoading(false);
+            })
             .catch(function () { showLoading(false); });
     }
 
-    function render(users) {
+    function renderPagination(pages) {
+        var el = document.getElementById('pagination');
+        if (!el || pages <= 1) { if (el) el.innerHTML = ''; return; }
+        var html = '<button onclick="changePage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>&laquo;</button>';
+        var start = Math.max(1, currentPage - 2), end = Math.min(pages, currentPage + 2);
+        for (var i = start; i <= end; i++) {
+            html += '<button onclick="changePage(' + i + ')"' + (i === currentPage ? ' class="active"' : '') + '>' + i + '</button>';
+        }
+        html += '<button onclick="changePage(' + (currentPage + 1) + ')"' + (currentPage >= pages ? ' disabled' : '') + '>&raquo;</button>';
+        html += '<span class="pagination-info">Стр. ' + currentPage + ' / ' + pages + '</span>';
+        el.innerHTML = html;
+    }
+
+    window.changePage = function (p) { if (p < 1 || p > totalPages) return; currentPage = p; loadUsers(); };
+
+    function render(users, total) {
         var tbody = document.getElementById('users-tbody');
         var table = document.getElementById('users-table');
         var empty = document.getElementById('empty-state');
         var count = document.getElementById('result-count');
-        if (count) count.textContent = 'Найдено: ' + users.length;
-        if (!users.length) { table.style.display = 'none'; empty.style.display = ''; return; }
+        if (count) count.textContent = 'Найдено: ' + (total || 0);
+        if (!users || !users.length) { table.style.display = 'none'; empty.style.display = ''; return; }
         table.style.display = ''; empty.style.display = 'none';
         tbody.innerHTML = users.map(function (u) {
             var detailUrl = '/static/user-detail.html?id=' + encodeURIComponent(u.id);
@@ -82,11 +105,11 @@
             .catch(function (err) { alert('Ошибка: ' + (err.message || err)); });
     });
 
-    document.getElementById('btn-filter').addEventListener('click', function () { loadUsers(); });
+    document.getElementById('btn-filter').addEventListener('click', function () { currentPage = 1; loadUsers(); });
     document.getElementById('btn-reset').addEventListener('click', function () {
         ['f-id','f-name','f-created-from','f-created-to','f-upd-from','f-upd-to'].forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ''; });
         var roleEl = document.getElementById('f-role'); if (roleEl) roleEl.selectedIndex = 0;
-        loadUsers();
+        currentPage = 1; loadUsers();
     });
 
     function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;') : ''; }
@@ -94,4 +117,19 @@
     function showLoading(s) { var e = document.getElementById('loading'); if (e) e.style.display = s ? '' : 'none'; }
 
     if (AuthModule.getToken()) loadUsers();
+
+    TableStatsModule.init({
+        endpoint: '/api/users/',
+        paginated: true,
+        buildQuery: buildQuery,
+        stripPagination: true,
+        extractItems: function (r) { return r.items || []; },
+        attributes: [
+            { key: 'role', label: 'Роль', type: 'categorical' },
+            { key: 'created_at', label: 'Создан', type: 'date' },
+            { key: 'updated_at', label: 'Изменён', type: 'date' },
+            { key: 'id', label: 'ID', type: 'categorical' },
+            { key: 'name', label: 'Имя', type: 'categorical' },
+        ],
+    });
 })();

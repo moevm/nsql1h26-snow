@@ -142,4 +142,62 @@
         document.getElementById('f-sim-id').value = simIdParam;
     }
     if (AuthModule.getToken()) load();
+
+    TableStatsModule.init({
+        endpoint: '/api/simulation-steps/',
+        filterFields: [
+            { id: 'f-step-own-id', param: 'step_own_id' },
+            { id: 'f-sim-id', param: 'sim_id' },
+            { id: 'f-tick-min', param: 'tick_min' },
+            { id: 'f-tick-max', param: 'tick_max' },
+            { id: 'f-created-from', param: 'created_at_from' },
+            { id: 'f-created-to', param: 'created_at_to' },
+            { id: 'f-upd-from', param: 'updated_at_from' },
+            { id: 'f-upd-to', param: 'updated_at_to' },
+            { id: 'f-en-route-min', param: 'vs_en_route_min' },
+            { id: 'f-en-route-max', param: 'vs_en_route_max' },
+            { id: 'f-cleaning-min', param: 'vs_cleaning_min' },
+            { id: 'f-cleaning-max', param: 'vs_cleaning_max' },
+            { id: 'f-dumping-min', param: 'vs_dumping_min' },
+            { id: 'f-dumping-max', param: 'vs_dumping_max' },
+            { id: 'f-maintenance-min', param: 'vs_maintenance_min' },
+            { id: 'f-maintenance-max', param: 'vs_maintenance_max' },
+            { id: 'f-avg-fuel-min', param: 'avg_fuel_min' },
+            { id: 'f-avg-fuel-max', param: 'avg_fuel_max' },
+            { id: 'f-avg-snow-min', param: 'avg_snow_min' },
+            { id: 'f-avg-snow-max', param: 'avg_snow_max' },
+            { id: 'f-roads-cleaned-min', param: 'roads_cleaned_min' },
+            { id: 'f-roads-cleaned-max', param: 'roads_cleaned_max' },
+            { id: 'f-snow-collected-min', param: 'snow_collected_min' },
+            { id: 'f-snow-collected-max', param: 'snow_collected_max' },
+            { id: 'f-fuel-spent-min', param: 'fuel_spent_min' },
+            { id: 'f-fuel-spent-max', param: 'fuel_spent_max' },
+            { id: 'f-breakdowns-min', param: 'breakdowns_min' },
+            { id: 'f-breakdowns-max', param: 'breakdowns_max' },
+        ],
+        extractItems: function (r) { return r.items || []; },
+        getValue: function (it, key) {
+            if (key.indexOf('ss.') === 0) {
+                try { return JSON.parse(it.sim_state || '{}')[key.slice(3)]; } catch (e) { return undefined; }
+            }
+            return it[key];
+        },
+        attributes: [
+            { key: 'tick', label: 'Тик', type: 'numeric' },
+            { key: 'roads_cleaned', label: '% дорог', type: 'numeric' },
+            { key: 'snow_collected', label: 'Снег (м³)', type: 'numeric' },
+            { key: 'fuel_spent', label: 'Топливо (л)', type: 'numeric' },
+            { key: 'breakdowns', label: 'Поломки', type: 'numeric' },
+            { key: 'ss.vehicles_en_route', label: 'Едут', type: 'numeric' },
+            { key: 'ss.vehicles_cleaning', label: 'Чистят', type: 'numeric' },
+            { key: 'ss.vehicles_dumping', label: 'Сброс снега', type: 'numeric' },
+            { key: 'ss.vehicles_maintenance', label: 'Техобслуж.', type: 'numeric' },
+            { key: 'ss.avg_fuel_pct', label: 'Ср. топл. %', type: 'numeric' },
+            { key: 'ss.avg_snow_load_pct', label: 'Ср. снег %', type: 'numeric' },
+            { key: 'created_at', label: 'Создан', type: 'date' },
+            { key: 'updated_at', label: 'Изменен', type: 'date' },
+            { key: 'id', label: 'ID', type: 'categorical' },
+            { key: 'simulation_id', label: 'Id Симуляции', type: 'categorical' },
+        ],
+    });
 })();

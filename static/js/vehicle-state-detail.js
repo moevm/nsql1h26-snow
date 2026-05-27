@@ -3,6 +3,9 @@
     var vsId = params.get('id');
     var currentData = null;
     var leafletMap = null;
+    var historyPage = 1;
+    var historyPageSize = 20;
+    var historyTotalPages = 1;
 
     function load() {
         if (!AuthModule.getToken() || !vsId) return;
@@ -72,13 +75,17 @@
     }
 
     function loadHistory() {
-        AuthModule.apiFetch('/api/vehicle-states/' + vsId + '/history')
-            .then(function (r) { return r.ok ? r.json() : []; })
-            .then(function (items) {
+        var q = '?page=' + historyPage + '&page_size=' + historyPageSize;
+        AuthModule.apiFetch('/api/vehicle-states/' + vsId + '/history' + q)
+            .then(function (r) { return r.ok ? r.json() : { items: [], total: 0, total_pages: 1 }; })
+            .then(function (data) {
+                historyTotalPages = data.total_pages || 1;
+                var items = data.items || [];
                 var table = document.getElementById('vs-history-table');
                 var tbody = document.getElementById('vs-history-tbody');
                 var empty = document.getElementById('vs-history-empty');
-                if (!items || !items.length) {
+                renderHistoryPagination(historyTotalPages, data.total);
+                if (!items.length) {
                     table.style.display = 'none';
                     empty.style.display = '';
                     return;
@@ -147,6 +154,27 @@
             })
             .catch(function() { alert('Ошибка'); });
     });
+
+    function renderHistoryPagination(pages, total) {
+        var el = document.getElementById('vs-history-pagination');
+        if (!el) return;
+        var info = total != null ? ' · Всего: ' + total : '';
+        if (pages <= 1) { el.innerHTML = '<span class="pagination-info">Стр. 1 / 1' + info + '</span>'; return; }
+        var html = '<button onclick="changeHistoryPage(' + (historyPage - 1) + ')"' + (historyPage <= 1 ? ' disabled' : '') + '>&laquo;</button>';
+        var start = Math.max(1, historyPage - 2), end = Math.min(pages, historyPage + 2);
+        for (var i = start; i <= end; i++) {
+            html += '<button onclick="changeHistoryPage(' + i + ')"' + (i === historyPage ? ' class="active"' : '') + '>' + i + '</button>';
+        }
+        html += '<button onclick="changeHistoryPage(' + (historyPage + 1) + ')"' + (historyPage >= pages ? ' disabled' : '') + '>&raquo;</button>';
+        html += '<span class="pagination-info">Стр. ' + historyPage + ' / ' + pages + info + '</span>';
+        el.innerHTML = html;
+    }
+
+    window.changeHistoryPage = function (p) {
+        if (p < 1 || p > historyTotalPages) return;
+        historyPage = p;
+        loadHistory();
+    };
 
     function field(label, value) {
         return '<div class="field"><span>' + label + '</span><span class="value">' + (value != null ? value : '—') + '</span></div>';

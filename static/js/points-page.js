@@ -162,4 +162,21 @@
     });
 
     if (AuthModule.getToken()) loadPoints();
+
+    TableStatsModule.init({
+        endpoint: '/api/objects/',
+        getFilters: getFilters,
+        extractItems: function (r) { return r.items || []; },
+        attributes: [
+            { key: 'type', label: 'Тип', type: 'categorical' },
+            { key: 'capacity', label: 'Вместимость', type: 'numeric' },
+            { key: 'lat', label: 'Широта', type: 'numeric' },
+            { key: 'lng', label: 'Долгота', type: 'numeric' },
+            { key: 'created_at', label: 'Создан', type: 'date' },
+            { key: 'updated_at', label: 'Изменён', type: 'date' },
+            { key: 'name', label: 'Название', type: 'categorical' },
+            { key: 'is_infrastructure', label: 'Инфраструктура', type: 'categorical' },
+            { key: 'id', label: 'ID', type: 'categorical' },
+        ],
+    });
 })();
