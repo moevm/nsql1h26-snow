@@ -541,6 +541,28 @@ class GraphDAO:
             id=route_id,
         )
 
+    async def get_route_waypoints_paged(self, route_id: str, page: int = 1, page_size: int = 20) -> dict:
+        import math
+        count_rows = await self.run_query(
+            "MATCH (r:Route {id: $id})-[:WAYPOINT]->(p:Point) RETURN count(p) AS total",
+            id=route_id,
+        )
+        total = count_rows[0]["total"] if count_rows else 0
+        skip = (page - 1) * page_size
+        rows = await self.run_query(
+            """
+            MATCH (r:Route {id: $id})-[w:WAYPOINT]->(p:Point)
+            RETURN p.id AS id, p.lat AS lat, p.lng AS lng,
+                   p.object_name AS object_name, p.object_type AS object_type,
+                   w.role AS role, w.index AS index
+            ORDER BY w.index
+            SKIP $skip LIMIT $page_size
+            """,
+            id=route_id, skip=skip, page_size=page_size,
+        )
+        return {"items": rows, "total": total, "page": page, "page_size": page_size,
+                "total_pages": math.ceil(total / page_size) if total else 1}
+
     async def add_waypoint_to_route(self, route_id: str, point_id: str, role: str, index: int) -> None:
         await self.run_write(
             """
@@ -626,6 +648,33 @@ class GraphDAO:
             """,
             id=sim_id,
         )
+
+    async def get_simulation_routes_paged(self, sim_id: str, page: int = 1, page_size: int = 20) -> dict:
+        import math
+        count_rows = await self.run_query(
+            "MATCH (s:Simulation {id: $id})-[:CONTAINS_ROUTE]->(r:Route) RETURN count(r) AS total",
+            id=sim_id,
+        )
+        total = count_rows[0]["total"] if count_rows else 0
+        skip = (page - 1) * page_size
+        rows = await self.run_query(
+            """
+            MATCH (s:Simulation {id: $id})-[:CONTAINS_ROUTE]->(r:Route)
+            RETURN r.id AS id, r.label AS label,
+                   r.start_lat AS start_lat, r.start_lng AS start_lng,
+                   r.end_lat AS end_lat, r.end_lng AS end_lng,
+                   coalesce(r.streets, []) AS streets,
+                   coalesce(r.distance_m, 0) AS distance_m,
+                   r.path_nodes_json AS path_nodes_json,
+                   r.created_at AS created_at, r.updated_at AS updated_at,
+                   r.started_at AS started_at, r.finished_at AS finished_at
+            ORDER BY r.created_at
+            SKIP $skip LIMIT $page_size
+            """,
+            id=sim_id, skip=skip, page_size=page_size,
+        )
+        return {"items": rows, "total": total, "page": page, "page_size": page_size,
+                "total_pages": math.ceil(total / page_size) if total else 1}
 
     async def create_simulation_step(self, step: dict, sim_id: str, index: int) -> None:
         await self.run_write(
@@ -883,6 +932,41 @@ class GraphDAO:
             """,
             id=step_id,
         )
+
+    async def get_step_vehicle_states_paged(self, step_id: str, page: int = 1, page_size: int = 20) -> dict:
+        import math
+        count_rows = await self.run_query(
+            "MATCH (vs:VehicleState)-[:VEHICLE_DETAILS]->(ss:SimulationStep {id: $id}) RETURN count(vs) AS total",
+            id=step_id,
+        )
+        total = count_rows[0]["total"] if count_rows else 0
+        skip = (page - 1) * page_size
+        rows = await self.run_query(
+            """
+            MATCH (vs:VehicleState)-[vd:VEHICLE_DETAILS]->(ss:SimulationStep {id: $id})
+            RETURN coalesce(vs.machine_id, vs.id) AS id, vs.id AS snapshot_id, vs.vehicle_type AS vehicle_type, vs.status AS status,
+                   vs.lat AS lat, vs.lng AS lng,
+                   vs.fuel_level AS fuel_level, vs.snow_loaded_m3 AS snow_loaded_m3,
+                   vs.distance_travelled_km AS distance_travelled_km,
+                   vs.speed_kmh AS speed_kmh,
+                   vs.travel_speed_kmh AS travel_speed_kmh,
+                   vs.cleaning_speed_kmh AS cleaning_speed_kmh,
+                   vs.fuel_capacity_l AS fuel_capacity_l,
+                   vs.snow_capacity_m3 AS snow_capacity_m3,
+                   vs.breakdown_probability AS breakdown_probability,
+                   vs.repair_remaining_min AS repair_remaining_min,
+                   vs.target_type AS target_type, vs.target_id AS target_id,
+                   vs.progress_m AS progress_m, vs.current_edge AS current_edge,
+                   vs.current_road AS current_road,
+                   vs.created_at AS created_at, vs.updated_at AS updated_at,
+                   vd.index AS vehicle_index
+            ORDER BY vd.index
+            SKIP $skip LIMIT $page_size
+            """,
+            id=step_id, skip=skip, page_size=page_size,
+        )
+        return {"items": rows, "total": total, "page": page, "page_size": page_size,
+                "total_pages": math.ceil(total / page_size) if total else 1}
 
     async def get_latest_simulation_vehicle_states(self, sim_id: str) -> list[dict]:
         rows = await self.run_query(

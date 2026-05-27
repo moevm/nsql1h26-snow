@@ -7,7 +7,19 @@
     var pickMarker = null;
     var pointsPage = 1;
     var pointsTotalPages = 1;
-    var POINTS_PAGE_SIZE = 20;
+    var pointsPageSize = 20;
+    var waypointsPage = 1;
+    var waypointsTotalPages = 1;
+    var waypointsPageSize = 20;
+
+    var pointsPaginator = PaginationModule.create('route-points-pagination', {
+        onPageChange: function (p) { pointsPage = p; loadRoutePoints(p); },
+        onPageSizeChange: function (s) { pointsPageSize = s; pointsPage = 1; loadRoutePoints(1); },
+    });
+    var waypointsPaginator = PaginationModule.create('waypoints-pagination', {
+        onPageChange: function (p) { waypointsPage = p; loadWaypoints(); },
+        onPageSizeChange: function (s) { waypointsPageSize = s; waypointsPage = 1; loadWaypoints(); },
+    });
 
     function loadRoute() {
         if (!AuthModule.getToken() || !routeId) return;
@@ -67,7 +79,7 @@
 
     function loadRoutePoints(page) {
         page = page || pointsPage;
-        AuthModule.apiFetch('/api/routes-crud/' + routeId + '/points?page=' + page + '&page_size=' + POINTS_PAGE_SIZE)
+        AuthModule.apiFetch('/api/routes-crud/' + routeId + '/points?page=' + page + '&page_size=' + pointsPageSize)
             .then(function (r) { return r.ok ? r.json() : { items: [], total: 0, total_pages: 1, page: 1 }; })
             .then(function (data) {
                 var points = data.items || [];
@@ -79,7 +91,7 @@
                 if (!points.length) {
                     if (table) table.style.display = 'none';
                     if (empty) empty.style.display = '';
-                    renderPointsPagination();
+                    pointsPaginator.render(pointsPage, pointsTotalPages, data.total, pointsPageSize);
                     return;
                 }
                 if (table) table.style.display = '';
@@ -93,37 +105,25 @@
                         + '<td>' + (p.object_type || '—') + '</td>'
                         + '</tr>';
                 }).join('');
-                renderPointsPagination();
+                pointsPaginator.render(pointsPage, pointsTotalPages, data.total, pointsPageSize);
             })
             .catch(function () {});
     }
 
-    function renderPointsPagination() {
-        var el = document.getElementById('route-points-pagination');
-        if (!el) return;
-        if (pointsTotalPages <= 1) { el.innerHTML = ''; return; }
-        el.innerHTML =
-            '<button onclick="changePointsPage(' + (pointsPage - 1) + ')"' + (pointsPage <= 1 ? ' disabled' : '') + '>&laquo;</button>'
-            + '<span class="pagination-info">Стр. ' + pointsPage + ' / ' + pointsTotalPages + '</span>'
-            + '<button onclick="changePointsPage(' + (pointsPage + 1) + ')"' + (pointsPage >= pointsTotalPages ? ' disabled' : '') + '>&raquo;</button>';
-    }
-
-    window.changePointsPage = function (p) {
-        if (p < 1 || p > pointsTotalPages) return;
-        pointsPage = p;
-        loadRoutePoints(p);
-    };
-
     function loadWaypoints() {
-        AuthModule.apiFetch('/api/routes-crud/' + routeId + '/waypoints')
-            .then(function (r) { return r.ok ? r.json() : []; })
-            .then(function (waypoints) {
+        var q = '?page=' + waypointsPage + '&page_size=' + waypointsPageSize;
+        AuthModule.apiFetch('/api/routes-crud/' + routeId + '/waypoints' + q)
+            .then(function (r) { return r.ok ? r.json() : { items: [], total: 0, total_pages: 1 }; })
+            .then(function (data) {
+                waypointsTotalPages = data.total_pages || 1;
+                var waypoints = data.items || [];
                 var tbody = document.getElementById('waypoints-tbody');
                 var empty = document.getElementById('waypoints-empty');
                 var table = document.getElementById('waypoints-table');
-                if (!waypoints || !waypoints.length) {
+                if (!waypoints.length) {
                     if (table) table.style.display = 'none';
                     if (empty) empty.style.display = '';
+                    waypointsPaginator.render(waypointsPage, waypointsTotalPages, data.total, waypointsPageSize);
                     return;
                 }
                 if (table) table.style.display = '';
@@ -138,10 +138,11 @@
                         + '<td>' + (roleLabels[w.role] || w.role) + '</td>'
                         + '</tr>';
                 }).join('');
-                if (leafletMap) {
+                waypointsPaginator.render(waypointsPage, waypointsTotalPages, data.total, waypointsPageSize);
+                if (leafletMap && waypointsPage === 1) {
+                    var colors = { start: '#a6e3a1', waypoint: '#f9e2af', end: '#f38ba8' };
                     waypoints.forEach(function (w) {
                         if (w.lat && w.lng) {
-                            var colors = { start: '#a6e3a1', waypoint: '#f9e2af', end: '#f38ba8' };
                             L.circleMarker([w.lat, w.lng], {
                                 radius: 7, color: colors[w.role] || '#89b4fa',
                                 fillColor: colors[w.role] || '#89b4fa', fillOpacity: 0.9

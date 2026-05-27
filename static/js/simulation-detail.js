@@ -3,7 +3,27 @@
     var simId = params.get('id');
     var stepsPage = 1;
     var stepsTotalPages = 1;
+    var stepsPageSize = 20;
+    var vehiclesPage = 1;
+    var vehiclesPageSize = 20;
+    var vehiclesTotalPages = 1;
+    var routesPage = 1;
+    var routesTotalPages = 1;
+    var routesPageSize = 20;
     var GRAPH_COLORS = ['#d90429', '#f77f00', '#ffbe0b', '#2a9d8f', '#3a86ff', '#8338ec'];
+
+    var stepsPaginator = PaginationModule.create('steps-pagination', {
+        onPageChange: function (p) { loadSteps(p); },
+        onPageSizeChange: function (s) { stepsPageSize = s; loadSteps(1); },
+    });
+    var vehiclesPaginator = PaginationModule.create('sim-vehicles-pagination', {
+        onPageChange: function (p) { vehiclesPage = p; loadSimVehicles(); },
+        onPageSizeChange: function (s) { vehiclesPageSize = s; vehiclesPage = 1; loadSimVehicles(); },
+    });
+    var routesPaginator = PaginationModule.create('sim-routes-pagination', {
+        onPageChange: function (p) { routesPage = p; loadSimRoutes(); },
+        onPageSizeChange: function (s) { routesPageSize = s; routesPage = 1; loadSimRoutes(); },
+    });
 
     function addContrastPolyline(map, latlngs, color, weight) {
         return L.layerGroup([
@@ -134,15 +154,19 @@
     }
 
     function loadSimRoutes() {
-        AuthModule.apiFetch('/api/simulation/' + simId + '/routes')
-            .then(function (r) { return r.ok ? r.json() : []; })
-            .then(function (routes) {
+        var q = '?page=' + routesPage + '&page_size=' + routesPageSize;
+        AuthModule.apiFetch('/api/simulation/' + simId + '/routes' + q)
+            .then(function (r) { return r.ok ? r.json() : { items: [], total: 0, total_pages: 1 }; })
+            .then(function (data) {
+                routesTotalPages = data.total_pages || 1;
+                var routes = data.items || [];
                 var tbody = document.getElementById('sim-routes-tbody');
                 var empty = document.getElementById('sim-routes-empty');
                 var table = document.getElementById('sim-routes-table');
-                if (!routes || !routes.length) {
+                if (!routes.length) {
                     if (table) table.style.display = 'none';
                     if (empty) empty.style.display = '';
+                    routesPaginator.render(routesPage, routesTotalPages, data.total, routesPageSize);
                     return;
                 }
                 if (table) table.style.display = '';
@@ -154,13 +178,14 @@
                         + '<td>' + ((r.distance_m || 0) / 1000).toFixed(2) + ' км</td>'
                         + '</tr>';
                 }).join('');
+                routesPaginator.render(routesPage, routesTotalPages, data.total, routesPageSize);
             })
             .catch(function () {});
     }
 
     function loadSteps(page) {
         stepsPage = page || 1;
-        AuthModule.apiFetch('/api/simulation/' + simId + '/steps?page=' + stepsPage + '&page_size=20')
+        AuthModule.apiFetch('/api/simulation/' + simId + '/steps?page=' + stepsPage + '&page_size=' + stepsPageSize)
             .then(function (r) { return r.ok ? r.json() : { items: [], total_pages: 1 }; })
             .then(function (d) {
                 stepsTotalPages = d.total_pages || 1;
@@ -170,6 +195,7 @@
                 if (!(d.items || []).length) {
                     if (table) table.style.display = 'none';
                     if (empty) empty.style.display = '';
+                    stepsPaginator.render(stepsPage, stepsTotalPages, d.total, stepsPageSize);
                     return;
                 }
                 if (table) table.style.display = '';
@@ -183,23 +209,16 @@
                         + '<td>' + (s.breakdowns || 0) + '</td>'
                         + '</tr>';
                 }).join('');
-
-                var pag = document.getElementById('steps-pagination');
-                if (pag && stepsTotalPages > 1) {
-                    pag.innerHTML = '<button onclick="window._loadSteps(' + (stepsPage - 1) + ')"' + (stepsPage <= 1 ? ' disabled' : '') + '>&laquo;</button>'
-                        + '<span class="pagination-info"> Стр. ' + stepsPage + ' / ' + stepsTotalPages + ' </span>'
-                        + '<button onclick="window._loadSteps(' + (stepsPage + 1) + ')"' + (stepsPage >= stepsTotalPages ? ' disabled' : '') + '>&raquo;</button>';
-                } else if (pag) {
-                    pag.innerHTML = '';
-                }
+                stepsPaginator.render(stepsPage, stepsTotalPages, d.total, stepsPageSize);
             })
             .catch(function () {});
     }
 
     function loadSimVehicles() {
-        AuthModule.apiFetch('/api/vehicle-states/?sim_id=' + encodeURIComponent(simId) + '&page=1&page_size=500')
-            .then(function (r) { return r.ok ? r.json() : { items: [] }; })
+        AuthModule.apiFetch('/api/vehicle-states/?sim_id=' + encodeURIComponent(simId) + '&page=' + vehiclesPage + '&page_size=' + vehiclesPageSize)
+            .then(function (r) { return r.ok ? r.json() : { items: [], total: 0, total_pages: 1 }; })
             .then(function (d) {
+                vehiclesTotalPages = d.total_pages || 1;
                 var items = d.items || [];
                 var tbody = document.getElementById('sim-vehicles-tbody');
                 var empty = document.getElementById('sim-vehicles-empty');
@@ -207,6 +226,7 @@
                 if (!items.length) {
                     table.style.display = 'none';
                     empty.style.display = '';
+                    vehiclesPaginator.render(vehiclesPage, vehiclesTotalPages, d.total, vehiclesPageSize);
                     return;
                 }
                 table.style.display = '';
@@ -221,11 +241,10 @@
                         + '<td>' + (v.tick != null ? v.tick : '—') + '</td>'
                         + '</tr>';
                 }).join('');
+                vehiclesPaginator.render(vehiclesPage, vehiclesTotalPages, d.total, vehiclesPageSize);
             })
             .catch(function () {});
     }
-
-    window._loadSteps = loadSteps;
 
     var deleteBtn = document.getElementById('btn-delete');
     if (deleteBtn) {

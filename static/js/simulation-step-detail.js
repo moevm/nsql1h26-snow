@@ -6,6 +6,14 @@
     var routeLayers = [];
     var vehicleMarkers = [];
     var ROUTE_COLORS = ['#d90429','#f77f00','#ffbe0b','#2a9d8f','#3a86ff','#8338ec'];
+    var vehiclesPage = 1;
+    var vehiclesTotalPages = 1;
+    var vehiclesPageSize = 20;
+
+    var vehiclesPaginator = PaginationModule.create('vehicles-pagination', {
+        onPageChange: function (p) { vehiclesPage = p; loadVehicles(); },
+        onPageSizeChange: function (s) { vehiclesPageSize = s; vehiclesPage = 1; loadVehicles(); },
+    });
 
     function addContrastPolyline(latlngs, color, weight) {
         return L.layerGroup([
@@ -174,35 +182,43 @@
     }
 
     function loadVehicles() {
-        AuthModule.apiFetch('/api/simulation-steps/' + stepId + '/vehicles')
-            .then(function(r) { return r.ok ? r.json() : []; })
-            .then(function(vehicles) {
-                vehicleMarkers.forEach(function(m) { leafletMap.removeLayer(m); });
-                vehicleMarkers = [];
+        var q = '?page=' + vehiclesPage + '&page_size=' + vehiclesPageSize;
+        AuthModule.apiFetch('/api/simulation-steps/' + stepId + '/vehicles' + q)
+            .then(function(r) { return r.ok ? r.json() : { items: [], total: 0, total_pages: 1 }; })
+            .then(function(data) {
+                vehiclesTotalPages = data.total_pages || 1;
+                var vehicles = data.items || [];
                 var tbody = document.getElementById('vehicles-tbody');
                 var empty = document.getElementById('vehicles-empty');
                 var table = document.getElementById('vehicles-table');
-                if (!vehicles || !vehicles.length) {
+                if (!vehicles.length) {
                     table.style.display = 'none';
                     empty.style.display = '';
+                    vehiclesPaginator.render(vehiclesPage, vehiclesTotalPages, data.total, vehiclesPageSize);
                     return;
                 }
                 table.style.display = ''; empty.style.display = 'none';
-                tbody.innerHTML = vehicles.map(function(v) {
+                if (vehiclesPage === 1) {
+                    vehicleMarkers.forEach(function(m) { leafletMap.removeLayer(m); });
+                    vehicleMarkers = [];
                     var statusColors = { broken: '#f38ba8', cleaning: '#a6e3a1', idle: '#89b4fa', refueling: '#f9e2af', dumping: '#fab387', maintenance: '#cba6f7', en_route: '#94e2d5', off_route: '#f59e0b' };
-                    var color = statusColors[v.status] || '#cba6f7';
-                    if (v.lat && v.lng && leafletMap) {
-                        var marker = L.circleMarker([v.lat, v.lng], {
-                            radius: 5, color: color, fillColor: color, fillOpacity: 0.9
-                        }).addTo(leafletMap).bindPopup(
-                            '<b>' + v.id + '</b><br>'
-                            + (v.vehicle_type || '') + ' — ' + (v.status || '') + '<br>'
-                            + 'Топливо: ' + (v.fuel_level != null ? v.fuel_level.toFixed(1) : '—') + ' л<br>'
-                            + 'Снег: ' + (v.snow_loaded_m3 != null ? v.snow_loaded_m3.toFixed(2) : '—') + ' м³<br>'
-                            + 'Цель: ' + ((v.target_type || '—') + (v.target_id ? ' / ' + v.target_id : ''))
-                        );
-                        vehicleMarkers.push(marker);
-                    }
+                    vehicles.forEach(function(v) {
+                        if (v.lat && v.lng && leafletMap) {
+                            var color = statusColors[v.status] || '#cba6f7';
+                            var marker = L.circleMarker([v.lat, v.lng], {
+                                radius: 5, color: color, fillColor: color, fillOpacity: 0.9
+                            }).addTo(leafletMap).bindPopup(
+                                '<b>' + v.id + '</b><br>'
+                                + (v.vehicle_type || '') + ' — ' + (v.status || '') + '<br>'
+                                + 'Топливо: ' + (v.fuel_level != null ? v.fuel_level.toFixed(1) : '—') + ' л<br>'
+                                + 'Снег: ' + (v.snow_loaded_m3 != null ? v.snow_loaded_m3.toFixed(2) : '—') + ' м³<br>'
+                                + 'Цель: ' + ((v.target_type || '—') + (v.target_id ? ' / ' + v.target_id : ''))
+                            );
+                            vehicleMarkers.push(marker);
+                        }
+                    });
+                }
+                tbody.innerHTML = vehicles.map(function(v) {
                     return '<tr onclick="window.location=\'/static/vehicle-state.html?id=' + v.id + '\'" style="cursor:pointer">'
                         + '<td>' + (v.vehicle_index != null ? v.vehicle_index : '—') + '</td>'
                         + '<td><a href="/static/vehicle-state.html?id=' + v.id + '">' + v.id + '</a></td>'
@@ -216,6 +232,7 @@
                         + '<td>' + (v.current_road || '—') + '</td>'
                         + '</tr>';
                 }).join('');
+                vehiclesPaginator.render(vehiclesPage, vehiclesTotalPages, data.total, vehiclesPageSize);
             })
             .catch(function() {});
     }

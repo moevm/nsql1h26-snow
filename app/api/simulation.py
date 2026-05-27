@@ -589,9 +589,13 @@ async def list_simulations(
     return result
 
 @router.get("/{sim_id}/routes")
-async def get_simulation_routes(request: Request, sim_id: str, user: str = Depends(get_current_user)):
+async def get_simulation_routes(
+    request: Request, sim_id: str,
+    page: int = 1, page_size: int = 20,
+    user: str = Depends(get_current_user),
+):
     graph = request.app.state.graph_dao
-    return await graph.get_simulation_routes(sim_id)
+    return await graph.get_simulation_routes_paged(sim_id, page=page, page_size=page_size)
 
 @router.get("/{sim_id}/steps")
 async def get_simulation_steps(

@@ -664,9 +664,22 @@ button:hover {
     display: flex;
     gap: 8px;
     align-items: center;
-    justify-content: center;
-    padding: 12px 0;
+    padding: 8px 0;
     flex-wrap: wrap;
+    min-height: 40px;
+}
+
+.pagination-size-label {
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+}
+
+.pagination-size-label input {
+    width: 56px;
+    padding: 2px 6px;
+    font-size: 0.82rem;
 }
 
 .pagination button {

@@ -3,6 +3,11 @@
     var pageSize = 20;
     var totalPages = 1;
 
+    var paginator = PaginationModule.create('pagination', {
+        onPageChange: function (p) { currentPage = p; loadRoutes(); },
+        onPageSizeChange: function (s) { pageSize = s; currentPage = 1; loadRoutes(); },
+    });
+
     function getFilters() {
         return {
             route_id_filter: document.getElementById('f-route-id').value.trim() || null,
@@ -70,7 +75,7 @@
         if (!routes || !routes.length) {
             table.style.display = 'none';
             empty.style.display = '';
-            renderPagination(1);
+            paginator.render(currentPage, 1, total, pageSize);
             return;
         }
         table.style.display = ''; empty.style.display = 'none';
@@ -88,25 +93,8 @@
                 + '<td onclick="event.stopPropagation()"><button class="btn-red" style="padding:2px 8px;font-size:0.8rem" onclick="deleteRoute(\'' + r.id + '\')">✕</button></td>'
                 + '</tr>';
         }).join('');
-        renderPagination(pages || 1);
+        paginator.render(currentPage, pages || 1, total, pageSize);
     }
-
-    function renderPagination(pages) {
-        var el = document.getElementById('pagination');
-        if (!el) return;
-        if (pages <= 1) { el.innerHTML = ''; return; }
-        var html = '<button onclick="changePage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>&laquo;</button>';
-        var start = Math.max(1, currentPage - 2);
-        var end = Math.min(pages, currentPage + 2);
-        for (var i = start; i <= end; i++) {
-            html += '<button onclick="changePage(' + i + ')"' + (i === currentPage ? ' class="active"' : '') + '>' + i + '</button>';
-        }
-        html += '<button onclick="changePage(' + (currentPage + 1) + ')"' + (currentPage >= pages ? ' disabled' : '') + '>&raquo;</button>';
-        html += '<span class="pagination-info">Стр. ' + currentPage + ' / ' + pages + '</span>';
-        el.innerHTML = html;
-    }
-
-    window.changePage = function(p) { if (p < 1 || p > totalPages) return; currentPage = p; loadRoutes(); };
 
     window.deleteRoute = function (id) {
         if (!confirm('Удалить маршрут?')) return;
