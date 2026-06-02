@@ -75,6 +75,8 @@ async def list_objects(
     point_id_filter: Optional[str] = None,
     page: int = 1,
     page_size: int = 50,
+    sort_by: Optional[str] = None,
+    sort_order: Optional[str] = None,
     user: str = Depends(get_current_user),
 ):
     graph = request.app.state.graph_dao
@@ -87,6 +89,7 @@ async def list_objects(
         updated_at_from=updated_at_from, updated_at_to=updated_at_to,
         capacity_min=capacity_min, capacity_max=capacity_max,
         point_id_filter=point_id_filter,
+        sort_by=sort_by, sort_order=sort_order,
     )
     result["items"] = [_flatten(r) for r in result["items"]]
     return result

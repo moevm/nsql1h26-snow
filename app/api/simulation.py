@@ -479,6 +479,8 @@ async def list_simulations(
     finished_at_to: str | None = None,
     page: int = 1,
     page_size: int = 20,
+    sort_by: str | None = None,
+    sort_order: str | None = None,
     user: str = Depends(get_current_user),
 ):
     graph = request.app.state.graph_dao
@@ -510,6 +512,7 @@ async def list_simulations(
         streets_count_min=streets_count_min, streets_count_max=streets_count_max,
         started_at_from=started_at_from, started_at_to=started_at_to,
         finished_at_from=finished_at_from, finished_at_to=finished_at_to,
+        sort_by=sort_by, sort_order=sort_order,
     )
     items = result["items"]
     for engine in _simulations.values():
