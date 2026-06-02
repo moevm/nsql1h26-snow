@@ -2,11 +2,33 @@
     var currentPage = 1;
     var pageSize = 20;
     var totalPages = 1;
+    var sortBy = '';
+    var sortOrder = 'desc';
 
     var paginator = PaginationModule.create('pagination', {
         onPageChange: function (p) { currentPage = p; loadPoints(); },
         onPageSizeChange: function (s) { pageSize = s; currentPage = 1; loadPoints(); },
     });
+
+    var sorter = SortModule.create('points-table', [
+        { th_index: 0, sort_key: 'id' },
+        { th_index: 1, sort_key: 'object_name' },
+        { th_index: 3, sort_key: 'object_type' },
+        { th_index: 4, sort_key: 'lat' },
+        { th_index: 5, sort_key: 'lng' },
+        { th_index: 6, sort_key: 'capacity' },
+        { th_index: 8, sort_key: 'created_at' },
+        { th_index: 9, sort_key: 'updated_at' },
+    ], function (col, order) {
+        sortBy = col;
+        sortOrder = order;
+        currentPage = 1;
+        loadPoints();
+    });
+    if (sorter) {
+        sortBy = sorter.getSortBy();
+        sortOrder = sorter.getSortOrder();
+    }
 
     var TYPE_LABELS = { parking: 'Парковка', snow_polygon: 'Снегоплавильня', service_station: 'Сервисная станция' };
 
@@ -27,6 +49,8 @@
             created_at_to: document.getElementById('f-created-to').value || null,
             updated_at_from: document.getElementById('f-upd-from').value || null,
             updated_at_to: document.getElementById('f-upd-to').value || null,
+            sort_by: sortBy || null,
+            sort_order: sortBy ? sortOrder : null,
             page: currentPage,
             page_size: pageSize,
         };

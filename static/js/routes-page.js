@@ -2,11 +2,34 @@
     var currentPage = 1;
     var pageSize = 20;
     var totalPages = 1;
+    var sortBy = '';
+    var sortOrder = 'desc';
 
     var paginator = PaginationModule.create('pagination', {
         onPageChange: function (p) { currentPage = p; loadRoutes(); },
         onPageSizeChange: function (s) { pageSize = s; currentPage = 1; loadRoutes(); },
     });
+
+    var sorter = SortModule.create('routes-table', [
+        { th_index: 0, sort_key: 'id' },
+        { th_index: 1, sort_key: 'label' },
+        { th_index: 2, sort_key: 'distance_m' },
+        { th_index: 3, sort_key: 'streets' },
+        { th_index: 4, sort_key: 'path_nodes_count' },
+        { th_index: 5, sort_key: 'created_at' },
+        { th_index: 6, sort_key: 'updated_at' },
+        { th_index: 7, sort_key: 'started_at' },
+        { th_index: 8, sort_key: 'finished_at' },
+    ], function (col, order) {
+        sortBy = col;
+        sortOrder = order;
+        currentPage = 1;
+        loadRoutes();
+    });
+    if (sorter) {
+        sortBy = sorter.getSortBy();
+        sortOrder = sorter.getSortOrder();
+    }
 
     function getFilters() {
         return {
@@ -31,6 +54,8 @@
 
     function buildQuery(f) {
         var p = ['page=' + currentPage, 'page_size=' + pageSize];
+        if (sortBy) p.push('sort_by=' + encodeURIComponent(sortBy));
+        if (sortBy) p.push('sort_order=' + encodeURIComponent(sortOrder));
         if (f.route_id_filter) p.push('route_id_filter=' + encodeURIComponent(f.route_id_filter));
         if (f.label) p.push('label=' + encodeURIComponent(f.label));
         if (f.distance_min) p.push('distance_min=' + f.distance_min);

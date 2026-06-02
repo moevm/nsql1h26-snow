@@ -705,3 +705,22 @@ button:hover {
     color: var(--text-dim);
     font-size: 0.82rem;
 }
+
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+th.sortable:hover {
+    color: var(--accent);
+}
+
+th.sort-active {
+    color: var(--accent);
+}
+
+.sort-arrow {
+    font-size: 0.7em;
+    opacity: 0.8;
+}
