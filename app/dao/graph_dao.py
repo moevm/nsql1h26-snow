@@ -6,7 +6,7 @@ from typing import Any
 
 from neo4j import AsyncGraphDatabase, AsyncDriver
 
-from app.dao.query_utils import build_filters
+from app.dao.query_utils import build_filters, build_order_by, _ROUTE_SORT_MAP, _POINT_SORT_MAP, _SIM_SORT_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -1261,6 +1261,8 @@ class GraphDAO:
         updated_at_from: str | None = None, updated_at_to: str | None = None,
         capacity_min: float | None = None, capacity_max: float | None = None,
         point_id_filter: str | None = None,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
     ) -> dict:
         import math
         specs = [
@@ -1282,6 +1284,7 @@ class GraphDAO:
         if only_infrastructure:
             specs.append(("p.object_type IS NOT NULL", "_only_infra", True))
         where, params = build_filters(specs)
+        order_by = build_order_by(sort_by, sort_order, _POINT_SORT_MAP, "ORDER BY p.object_type DESC, p.updated_at DESC")
         skip = (page - 1) * page_size
         count_rows = await self.run_query(
             f"MATCH (p:Point) {where} RETURN count(p) AS total",
@@ -1296,7 +1299,7 @@ class GraphDAO:
                    p.lat AS lat, p.lng AS lng, p.description AS description,
                    p.capacity AS capacity, p.created_at AS created_at, p.updated_at AS updated_at,
                    CASE WHEN p.object_type IS NOT NULL THEN 'True' ELSE 'False' END AS is_infrastructure
-            ORDER BY p.object_type DESC, p.updated_at DESC
+            {order_by}
             SKIP $skip LIMIT $page_size
             """,
             skip=skip, page_size=page_size,
@@ -1318,6 +1321,8 @@ class GraphDAO:
         finished_at_from: str | None = None, finished_at_to: str | None = None,
         path_nodes_min: int | None = None, path_nodes_max: int | None = None,
         route_id_filter: str | None = None,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
     ) -> dict:
         import math
         path_size = "size(apoc.convert.fromJsonList(coalesce(r.path_nodes_json, '[]')))"
@@ -1338,6 +1343,7 @@ class GraphDAO:
             (f"{path_size} <= $path_nodes_max",                         "path_nodes_max",   path_nodes_max),
         ])
         skip = (page - 1) * page_size
+        order_by = build_order_by(sort_by, sort_order, _ROUTE_SORT_MAP, "ORDER BY r.updated_at DESC")
         count_rows = await self.run_query(
             f"MATCH (r:Route) {where} RETURN count(r) AS total",
             **params,
@@ -1358,7 +1364,7 @@ class GraphDAO:
                    r.started_at AS started_at,
                    r.finished_at AS finished_at,
                    CASE WHEN r.path_nodes_json IS NOT NULL THEN {path_size} ELSE 0 END AS path_nodes_count
-            ORDER BY r.updated_at DESC
+            {order_by}
             SKIP $skip LIMIT $page_size
             """,
             skip=skip, page_size=page_size,
@@ -1403,6 +1409,8 @@ class GraphDAO:
         streets_count_min: int | None = None, streets_count_max: int | None = None,
         started_at_from: str | None = None, started_at_to: str | None = None,
         finished_at_from: str | None = None, finished_at_to: str | None = None,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
     ) -> dict:
         import math
 
@@ -1467,6 +1475,7 @@ class GraphDAO:
             ("s.finished_at <= datetime($finished_at_to)",                    "finished_at_to",           finished_at_to),
         ])
         skip = (page - 1) * page_size
+        order_by = build_order_by(sort_by, sort_order, _SIM_SORT_MAP, "ORDER BY s.updated_at DESC")
         count_rows = await self.run_query(
             f"MATCH (s:Simulation) {where} RETURN count(s) AS total",
             **params,
@@ -1491,7 +1500,7 @@ class GraphDAO:
                    s.updated_at AS updated_at,
                    s.started_at AS started_at, s.finished_at AS finished_at,
                    s.params_json AS params_json
-            ORDER BY s.updated_at DESC
+            {order_by}
             SKIP $skip LIMIT $page_size
             """,
             skip=skip, page_size=page_size,

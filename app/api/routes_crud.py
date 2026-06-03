@@ -129,6 +129,8 @@ async def list_routes(
     route_id_filter: str | None = None,
     page: int = 1,
     page_size: int = 20,
+    sort_by: str | None = None,
+    sort_order: str | None = None,
     user: str = Depends(get_current_user),
 ):
     graph = request.app.state.graph_dao
@@ -142,6 +144,7 @@ async def list_routes(
         finished_at_from=finished_at_from, finished_at_to=finished_at_to,
         path_nodes_min=path_nodes_min, path_nodes_max=path_nodes_max,
         route_id_filter=route_id_filter,
+        sort_by=sort_by, sort_order=sort_order,
     )
     raw_items = result["items"]
     converted = [_row_to_route(row) for row in raw_items]

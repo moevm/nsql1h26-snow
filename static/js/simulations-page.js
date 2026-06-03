@@ -2,11 +2,47 @@
     var currentPage = 1;
     var pageSize = 20;
     var totalPages = 1;
+    var sortBy = '';
+    var sortOrder = 'desc';
 
     var paginator = PaginationModule.create('pagination', {
         onPageChange: function (p) { currentPage = p; loadSims(); },
         onPageSizeChange: function (s) { pageSize = s; currentPage = 1; loadSims(); },
     });
+
+    var sorter = SortModule.create('sims-table', [
+        { th_index: 0, sort_key: 'id' },
+        { th_index: 1, sort_key: 'name' },
+        { th_index: 2, sort_key: 'status' },
+        { th_index: 3, sort_key: 'tick' },
+        { th_index: 4, sort_key: 'elapsed_minutes' },
+        { th_index: 5, sort_key: 'roads_cleaned_pct' },
+        { th_index: 6, sort_key: 'vehicles_total' },
+        { th_index: 7, sort_key: 'vehicles_en_route' },
+        { th_index: 8, sort_key: 'vehicles_cleaning' },
+        { th_index: 9, sort_key: 'vehicles_dumping' },
+        { th_index: 10, sort_key: 'vehicles_refueling' },
+        { th_index: 11, sort_key: 'vehicles_maintenance' },
+        { th_index: 12, sort_key: 'snow_collected_m3' },
+        { th_index: 13, sort_key: 'fuel_spent_l' },
+        { th_index: 14, sort_key: 'avg_fuel_pct' },
+        { th_index: 15, sort_key: 'avg_snow_load_pct' },
+        { th_index: 16, sort_key: 'roads_total' },
+        { th_index: 23, sort_key: 'streets' },
+        { th_index: 24, sort_key: 'created_at' },
+        { th_index: 25, sort_key: 'updated_at' },
+        { th_index: 26, sort_key: 'started_at' },
+        { th_index: 27, sort_key: 'finished_at' },
+    ], function (col, order) {
+        sortBy = col;
+        sortOrder = order;
+        currentPage = 1;
+        loadSims();
+    });
+    if (sorter) {
+        sortBy = sorter.getSortBy();
+        sortOrder = sorter.getSortOrder();
+    }
 
     function getFilters() {
         return {
@@ -68,6 +104,8 @@
 
     function buildQuery(f) {
         var p = ['page=' + currentPage, 'page_size=' + pageSize];
+        if (sortBy) p.push('sort_by=' + encodeURIComponent(sortBy));
+        if (sortBy) p.push('sort_order=' + encodeURIComponent(sortOrder));
         Object.keys(f).forEach(function(k) {
             if (f[k] !== null && f[k] !== undefined && f[k] !== '') p.push(k + '=' + encodeURIComponent(f[k]));
         });
